@@ -8,9 +8,10 @@ import json
 from datetime import datetime
 
 # Configuration
-API_BASE_URL = "https://pann-pos.onrender.com/api/v1"  # Update if using local
-CUSTOMER_EMAIL = "customer@gmail.com"
-CUSTOMER_PASSWORD = "password123"  # Update with actual password
+import os
+API_BASE_URL = os.getenv("API_BASE_URL", "https://pann-pos.onrender.com/api/v1")
+CUSTOMER_EMAIL = os.getenv("CUSTOMER_EMAIL", "customer@gmail.com")
+CUSTOMER_PASSWORD = os.getenv("CUSTOMER_PASSWORD")  # Set via environment variable
 
 # Test Results
 results = {
@@ -311,6 +312,12 @@ def main():
     print(f"\nAPI Base URL: {API_BASE_URL}")
     print(f"Customer Email: {CUSTOMER_EMAIL}")
     print(f"Test Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    if not CUSTOMER_PASSWORD:
+        print("\n❌ ERROR: CUSTOMER_PASSWORD environment variable is not set")
+        print("   Set it using: export CUSTOMER_PASSWORD='your_password'")
+        print_summary()
+        return
     
     # Run tests
     access_token = login_customer()

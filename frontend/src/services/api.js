@@ -100,7 +100,7 @@ export const authAPI = {
       const response = await apiClient.post('/auth/customer/login/', { email, password });
       console.log('[API] Login response:', response.data);
       
-      const { access_token, refresh_token, user } = response.data || {};
+      const { access_token, refresh_token } = response.data || {};
       
       if (access_token) {
         localStorage.setItem('access_token', access_token);

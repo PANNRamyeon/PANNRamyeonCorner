@@ -1,0 +1,20 @@
+[build]
+  # Base directory for the build
+  base = "frontend"
+  
+  # Build command for frontend
+  command = "npm run build"
+  
+  # Publish directory (Vue CLI outputs to dist/)
+  publish = "dist"
+
+[build.environment]
+  # Node version for Netlify build
+  NODE_VERSION = "18"
+
+# Redirect rules for Vue Router (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+

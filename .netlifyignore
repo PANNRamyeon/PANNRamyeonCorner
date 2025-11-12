@@ -1,0 +1,9 @@
+# Files to ignore during Netlify build
+# These are test/debug files that may contain example credentials
+test_order_history_sync.py
+debug_order_history.html
+public/test-orders-api.html
+public/clear-and-test.html
+frontend/clear-cart-console.js
+frontend/clear-cart.html
+

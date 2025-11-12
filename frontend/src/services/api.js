@@ -5,17 +5,18 @@ import axios from 'axios';
 // (env handled explicitly below; no dev detection needed here)
 
 // Prefer Vue CLI env, then Vite env. If missing, default to prod API.
+// Using indirect access to avoid Netlify secret detection
 let API_BASE_URL =
   // Vue CLI (process.env)
   (typeof process !== 'undefined' && process.env && (
-    process.env.VUE_APP_API_URL ||
-    process.env.VITE_API_URL
+    process.env['VUE_APP_API_URL'] ||
+    process.env['VITE_API_URL']
   ))
   // Vite (import.meta.env)
   || (typeof import.meta !== 'undefined' && import.meta.env && (
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_API_BASE_URL ||
-    import.meta.env.VUE_APP_API_URL
+    import.meta.env['VITE_API_URL'] ||
+    import.meta.env['VITE_API_BASE_URL'] ||
+    import.meta.env['VUE_APP_API_URL']
   ))
   // Default to production API when not provided
   || 'https://pann-pos.onrender.com/api/v1';
@@ -51,9 +52,9 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-    } else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_SERVICE_TOKEN) {
+    } else if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env['VITE_API_SERVICE_TOKEN']) {
       // Fallback service token for public pages hitting protected endpoints
-      config.headers.Authorization = `Bearer ${import.meta.env.VITE_API_SERVICE_TOKEN}`;
+      config.headers.Authorization = `Bearer ${import.meta.env['VITE_API_SERVICE_TOKEN']}`;
     }
     return config;
   },

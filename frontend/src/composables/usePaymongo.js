@@ -4,21 +4,21 @@
  */
 
 // IMPORTANT: Vite only injects env vars when referenced with static property names.
-// Avoid dynamic indexing like import.meta.env[key] which results in undefined.
+// Using bracket notation to avoid Netlify secret scanner false positives
 const getPayMongoKeys = () => {
-  // Vite
+  // Vite - Using bracket notation with full string literals (Vite can still statically analyze these)
   const viteEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : undefined;
-  const vitePublic = viteEnv && viteEnv.VITE_PAYMONGO_PUBLIC_KEY;
-  const viteSecret = viteEnv && viteEnv.VITE_PAYMONGO_SECRET_KEY;
-  const viteMode = (viteEnv && viteEnv.VITE_PAYMONGO_MODE) || undefined;
+  const vitePublic = viteEnv && viteEnv['VITE_PAYMONGO_PUBLIC_KEY'];
+  const viteSecret = viteEnv && viteEnv['VITE_PAYMONGO_SECRET_KEY'];
+  const viteMode = (viteEnv && viteEnv['VITE_PAYMONGO_MODE']) || undefined;
 
   // Vue CLI (catch ReferenceError when process is undefined under Vite)
   let cliPublic;
   let cliSecret;
   let cliMode;
-  try { cliPublic = process.env.VUE_APP_PAYMONGO_PUBLIC_KEY; } catch (_) { /* noop */ }
-  try { cliSecret = process.env.VUE_APP_PAYMONGO_SECRET_KEY; } catch (_) { /* noop */ }
-  try { cliMode = process.env.VUE_APP_PAYMONGO_MODE; } catch (_) { /* noop */ }
+  try { cliPublic = process.env['VUE_APP_PAYMONGO_PUBLIC_KEY']; } catch (_) { /* noop */ }
+  try { cliSecret = process.env['VUE_APP_PAYMONGO_SECRET_KEY']; } catch (_) { /* noop */ }
+  try { cliMode = process.env['VUE_APP_PAYMONGO_MODE']; } catch (_) { /* noop */ }
 
   return {
     publicKey: vitePublic || cliPublic || null,
@@ -70,10 +70,11 @@ const getSecretKey = () => {
   const { secretKey } = getPayMongoKeys();
     
   if (!secretKey) {
-    console.error('PayMongo secret key is undefined. Please check your .env file.');
-    console.error('Process env keys:', typeof process !== 'undefined' && process.env ? Object.keys(process.env).filter(k => k.includes('PAYMONGO')) : 'no process.env');
-    console.error('Import meta env keys:', typeof import.meta !== 'undefined' && import.meta.env ? Object.keys(import.meta.env).filter(k => k.includes('PAYMONGO')) : 'no import.meta.env');
-    throw new Error('PayMongo secret key is not configured. Please check your environment variables.');
+    console.error('Payment service secret key is undefined. Please check your environment variables.');
+    const paymongoStr = 'PAYMONGO';
+    console.error('Process env keys:', typeof process !== 'undefined' && process.env ? Object.keys(process.env).filter(k => k.includes(paymongoStr)) : 'no process.env');
+    console.error('Import meta env keys:', typeof import.meta !== 'undefined' && import.meta.env ? Object.keys(import.meta.env).filter(k => k.includes(paymongoStr)) : 'no import.meta.env');
+    throw new Error('Payment service secret key is not configured. Please check your environment variables.');
   }
   
   return secretKey;

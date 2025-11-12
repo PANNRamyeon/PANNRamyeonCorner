@@ -11,6 +11,13 @@
 [build.environment]
   # Node version for Netlify build
   NODE_VERSION = "18"
+  
+# Functions directory (if not using, leave empty)
+# functions = ""
+
+# Plugin configuration
+# [[plugins]]
+#   package = "@netlify/plugin-lighthouse"
 
 # Redirect rules for Vue Router (SPA)
 [[redirects]]

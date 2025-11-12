@@ -404,18 +404,20 @@ export default {
 
       try {
         // Call backend API to register user
-        // Backend expects: { email, password, username, full_name, phone, delivery_address }
+        // Backend expects: { email, password, first_name, last_name, phone, delivery_address }
+        // Backend returns: { success: True, customer: {...}, message: "..." }
         const response = await authAPI.register({
-          firstName: this.formData.firstName.trim(),
-          lastName: this.formData.lastName.trim(),
+          first_name: this.formData.firstName.trim(),
+          last_name: this.formData.lastName.trim(),
           email: this.formData.email.toLowerCase().trim(),
           phone: this.formData.phone,
           password: this.formData.password,
         });
 
         // Create user session from API response
-        // Backend returns: { token, customer, message }
-        const customer = response.customer;
+        // Backend returns: { success: True, customer: {...}, message: "..." }
+        // Note: Registration doesn't return tokens - user needs to log in separately
+        const customer = response.customer || {};
         const userSession = {
           id: customer._id || customer.id,
           email: customer.email,
@@ -429,14 +431,26 @@ export default {
           loginTime: new Date().toISOString()
         };
 
-        // Save session to localStorage
-        localStorage.setItem('ramyeon_user_session', JSON.stringify(userSession));
+        // Note: Registration doesn't auto-login, so we don't save session yet
+        // User will need to log in after registration
+        // localStorage.setItem('ramyeon_user_session', JSON.stringify(userSession));
 
-        this.successMessage = response.message || 'Account created successfully! Welcome to Ramyeon Corner!';
+        this.successMessage = response.message || 'Account created successfully! Please log in to continue.';
 
+        // Redirect to login after successful registration
         setTimeout(() => {
-          this.$emit('signUpSuccess', userSession);
-        }, 1500);
+          this.$emit('switchToLogin');
+          // Clear form
+          this.formData = {
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            password: '',
+            confirmPassword: ''
+          };
+          this.errors = {};
+        }, 2000);
 
       } catch (error) {
         console.error('SignUp error:', error);

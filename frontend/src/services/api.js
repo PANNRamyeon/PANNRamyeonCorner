@@ -67,34 +67,58 @@ apiClient.interceptors.request.use(
 export const authAPI = {
   register: async (payload) => {
     try {
+      console.log('[API] Attempting registration for:', payload.email);
       const response = await apiClient.post('/auth/customer/register/', payload);
+      console.log('[API] Registration response:', response.data);
+      
+      // Backend returns: { success: True, customer: {...}, message: "..." }
+      // Registration doesn't return tokens - user needs to log in separately
       const { access_token, refresh_token } = response.data || {};
+      
+      // Only save tokens if they exist (they shouldn't for registration)
       if (access_token) {
         localStorage.setItem('access_token', access_token);
+        console.log('[API] Access token saved');
       }
       if (refresh_token) {
         localStorage.setItem('refresh_token', refresh_token);
       }
+      
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Registration failed' };
+      console.error('[API] Registration error:', error);
+      console.error('[API] Error response:', error.response?.data);
+      console.error('[API] Error status:', error.response?.status);
+      throw error.response?.data || { error: error.message || 'Registration failed' };
     }
   },
 
   // Login (customer login via PANN_POS customer service)
   login: async (email, password) => {
     try {
+      console.log('[API] Attempting login for:', email);
       const response = await apiClient.post('/auth/customer/login/', { email, password });
-      const { access_token, refresh_token } = response.data || {};
+      console.log('[API] Login response:', response.data);
+      
+      const { access_token, refresh_token, user } = response.data || {};
+      
       if (access_token) {
         localStorage.setItem('access_token', access_token);
+        console.log('[API] Access token saved');
+      } else {
+        console.warn('[API] No access_token in response');
       }
+      
       if (refresh_token) {
         localStorage.setItem('refresh_token', refresh_token);
       }
+      
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Login failed' };
+      console.error('[API] Login error:', error);
+      console.error('[API] Error response:', error.response?.data);
+      console.error('[API] Error status:', error.response?.status);
+      throw error.response?.data || { error: error.message || 'Login failed' };
     }
   },
 

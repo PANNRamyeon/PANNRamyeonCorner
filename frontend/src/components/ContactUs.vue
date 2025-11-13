@@ -14,15 +14,18 @@
             We'd love to hear from you!
           </p>
           <div class="social-icons-hero">
-            <a href="#" class="social-icon-link" aria-label="Facebook">
-              <img src="../assets/Nav Bar/fb.png" alt="Facebook" />
-            </a>
-            <a href="#" class="social-icon-link" aria-label="Instagram">
-              <img src="../assets/Nav Bar/ig.png" alt="Instagram" />
-            </a>
-            <a href="#" class="social-icon-link" aria-label="Twitter">
-              <img src="../assets/Nav Bar/twt.png" alt="Twitter" />
-            </a>
+            <a href="https://www.facebook.com/ramyeoncornerbislig" class="social-link" aria-label="Facebook" target="_blank" rel="noopener noreferrer">
+                <img src="../assets/Nav Bar/fb.png" alt="Facebook" />
+              </a>
+              <!--<a href="#" class="social-link" aria-label="Twitter">
+                <img src="./assets/Nav Bar/twt.png" alt="Twitter" />
+              </a>
+              <a href="#" class="social-link" aria-label="Instagram">
+                <img src="./assets/Nav Bar/ig.png" alt="Instagram" />
+              </a>
+              <a href="#" class="social-link" aria-label="Github">
+                <img src="./assets/Nav Bar/git.png" alt="Github" />
+              </a>-->
           </div>
         </div>
       </section>
@@ -132,10 +135,10 @@
           </div>
           <h2 class="newsletter-title">Stay Updated with Ramyeon Corner</h2>
           <p class="newsletter-description">
-            Subscribe to our newsletter and be the first to know about new menu items, 
+            Check on our website and our facebook page to be the first to know about new menu items, 
             special promotions, and exclusive deals delivered straight to your inbox.
           </p>
-          <form class="newsletter-form" @submit.prevent="subscribeNewsletter">
+          <!--<form class="newsletter-form" @submit.prevent="subscribeNewsletter">
             <div class="newsletter-input-group">
               <div class="input-wrapper">
                 <input 
@@ -177,7 +180,7 @@
               </svg>
               We respect your privacy. Unsubscribe at any time.
             </p>
-          </form>
+          </form>-->
         </div>
       </section>
     </div>

@@ -84,9 +84,9 @@
             <label for="remember">Remember me</label>
           </div>
           
-          <div class="forgot-password">
+      <!--   <div class="forgot-password">
             <a href="#" @click.prevent="handleForgotPassword">Forgot Password?</a>
-          </div>
+          </div>-->   
         </div>
         
         <button type="submit" class="auth-button" :disabled="isLoading">
@@ -221,18 +221,18 @@ export default {
         );
         
         // Create user session from API response
-        // Backend returns: { access_token, refresh_token, token_type, user }
-        const user = response.user || response.customer || {};
+        // Backend returns: { access_token, user, ... } or legacy { customer }
+        const customer = response.customer || response.user || {};
         const userSession = {
-          id: user._id || user.id,
-          email: user.email,
-          username: user.username,
-          fullName: user.full_name || '',
-          firstName: user.full_name ? user.full_name.split(' ')[0] : '',
-          lastName: user.full_name ? user.full_name.split(' ').slice(1).join(' ') : '',
-          phone: user.phone || '',
-          points: user.loyalty_points || 0,
-          deliveryAddress: user.delivery_address || {},
+          id: customer._id || customer.id,
+          email: customer.email,
+          username: customer.username,
+          fullName: customer.full_name,
+          firstName: customer.full_name ? customer.full_name.split(' ')[0] : '',
+          lastName: customer.full_name ? customer.full_name.split(' ').slice(1).join(' ') : '',
+          phone: customer.phone || '',
+          points: customer.loyalty_points || 0,
+          deliveryAddress: customer.delivery_address || {},
           loginTime: new Date().toISOString()
         };
         
@@ -251,24 +251,16 @@ export default {
         
       } catch (error) {
         console.error('Login error:', error);
-        console.error('Error details:', {
-          error: error.error,
-          message: error.message,
-          detail: error.detail,
-          status: error.status,
-          response: error.response
-        });
         
         // Handle specific error messages from backend
-        // Backend returns { error: "..." } format
         if (error.error) {
-          this.errorMessage = typeof error.error === 'string' ? error.error : 'Login failed';
+          this.errorMessage = error.error;
         } else if (error.detail) {
           this.errorMessage = error.detail;
         } else if (error.message) {
           this.errorMessage = error.message;
         } else if (error.non_field_errors) {
-          this.errorMessage = Array.isArray(error.non_field_errors) ? error.non_field_errors[0] : error.non_field_errors;
+          this.errorMessage = error.non_field_errors[0];
         } else {
           this.errorMessage = 'Invalid email or password. Please try again.';
         }

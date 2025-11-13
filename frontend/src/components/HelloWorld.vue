@@ -148,7 +148,7 @@
         <div class="celebrate-text">
           <h2>Celebrate parties here at <span class="highlight">Ramyeon Corner</span></h2>
           <p>Celebrate your special moments at Ramyeon Corner! Enjoy delicious Korean-style ramen and sizzling side dishes, perfect for any party. Check out our best deals for group celebrations!</p>
-          <button class="contact-btn">Contact Us ></button>
+          <button class="contact-btn" @click="goToContact" >Contact Us ></button>
         </div>
       </div>
     </section>
@@ -226,6 +226,10 @@ export default {
     }
   },
   methods: {
+    goToContact() {
+      this.$emit('setCurrentPage', 'Contact');
+    },
+
     setActiveCategory(category) {
       this.activeCategory = category;
     },
@@ -244,14 +248,17 @@ export default {
         alert('Please select a pickup time');
         return;
       }
-      
+
       const message = this.deliveryType === 'Delivery' 
         ? `Order placed for delivery to ${this.address}`
         : `Order placed for pickup at ${this.pickupTime}`;
-      
+        
       alert(message);
       this.address = '';
       this.pickupTime = '';
+
+      // ✅ Tell parent we want to go to login, but from an order action
+      this.$emit('setCurrentPage', 'Login', { from: 'OrderNow' });
     }
   }
 }

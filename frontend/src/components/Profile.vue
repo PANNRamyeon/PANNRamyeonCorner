@@ -1,6 +1,7 @@
 <template>
   <div class="profile-container" :class="{ 'dark-mode': isDarkMode }">
     <div class="profile-content">
+
       <!-- Profile Header -->
       <div class="profile-header">
         <div class="profile-avatar" @mouseenter="avatarHover = true" @mouseleave="avatarHover = false">
@@ -12,32 +13,34 @@
 
       <!-- Profile Main Content -->
       <div class="profile-main">
+
         <!-- Loyalty Points Section -->
         <div class="loyalty-points-section">
           <div class="points-header">
             <h2 class="section-title">⭐ Loyalty Points</h2>
+
             <div class="points-balance">
               <div class="points-circle">
                 <div class="points-value">{{ user.loyalty_points || 0 }}</div>
                 <div class="points-unit">points</div>
               </div>
+
               <div class="points-value-display">
                 <div class="points-peso-value">₱{{ ((user.loyalty_points || 0) / 4).toFixed(2) }}</div>
                 <div class="points-value-label">in value</div>
               </div>
             </div>
           </div>
-          
+
           <div class="points-actions">
             <button class="promotions-btn" @click="$emit('setCurrentPage', 'Promotions')">
               🎁 Browse Promotions
             </button>
-            <button class="points-history-btn" @click="showPointsHistory">
+        <!--  <button class="points-history-btn" @click="showPointsHistory">
               📊 Points History
-            </button>
+            </button>-->  
           </div>
-          
-          <!-- Points Info -->
+
           <div class="points-info">
             <div class="info-item">
               <span class="info-label">Earn Rate:</span>
@@ -58,11 +61,12 @@
         <div class="vouchers-section">
           <div class="section-header">
             <h2 class="section-title">{{ user.vouchers.length > 0 ? 'My Vouchers' : 'No Vouchers Yet' }}</h2>
+
             <a v-if="user.vouchers.length > 2" href="#" class="see-all-btn" @click.prevent="showAllVouchers">
               {{ showAllVouchersFlag ? 'Show Less' : 'See All' }}
             </a>
           </div>
-          
+
           <div v-if="user.vouchers.length > 0" class="vouchers-grid">
             <div 
               v-for="voucher in displayedVouchers" 
@@ -78,7 +82,7 @@
               <span class="voucher-discount">{{ voucher.discount }}</span>
             </div>
           </div>
-          
+
           <div v-else class="empty-vouchers">
             <div class="empty-icon">🎫</div>
             <p class="empty-text">Save vouchers from promotions to use them later!</p>
@@ -88,7 +92,8 @@
           </div>
         </div>
 
-        <!-- QR Code Section -->
+        <!-- QR CODE SECTION HIDDEN -->
+        <!--
         <div class="qr-section">
           <h3 class="qr-title">Scan for Points</h3>
           <QRCode
@@ -99,11 +104,13 @@
             size="medium"
           />
         </div>
+        -->
 
         <!-- Settings Section -->
-        <div class="settings-section">
+       <!-- <div class="settings-section">
           <h3 class="settings-title">Account & App Settings</h3>
           <p class="settings-description">Manage your profile information and app preferences</p>
+
           <div class="settings-buttons">
             <button class="settings-btn profile-settings-btn" @click="$emit('setCurrentPage', 'ProfileSettings')">
               👤 Profile Settings
@@ -112,12 +119,12 @@
               ⚙️ App Settings
             </button>
           </div>
-        </div>
-        
-        <!-- Order & Payment Management -->
+        </div>-->
+
         <div class="settings-section">
           <h3 class="settings-title">Orders & Payments</h3>
           <p class="settings-description">View your order history and payment transactions</p>
+
           <div class="settings-buttons">
             <button class="settings-btn order-history-btn" @click="$emit('setCurrentPage', 'OrderHistory')">
               📦 Order History
@@ -127,10 +134,10 @@
             </button>
           </div>
         </div>
+
       </div>
     </div>
 
-    <!-- Voucher Modal -->
     <VoucherModal 
       :voucher="selectedVoucher"
       :isVisible="showVoucherModal"
@@ -143,13 +150,11 @@
 </template>
 
 <script>
-import QRCode from './QRCode.vue'
 import VoucherModal from './VoucherModal.vue'
 
 export default {
   name: 'Profile',
   components: {
-    QRCode,
     VoucherModal
   },
   emits: ['setCurrentPage'],
@@ -160,7 +165,7 @@ export default {
         lastName: 'Doe',
         email: 'john.doe@example.com',
         points: 3280,
-        loyalty_points: 0, // Real points from database (starts at 0)
+        loyalty_points: 0,
         vouchers: []
       },
       showVoucherModal: false,
@@ -170,137 +175,146 @@ export default {
       avatarHover: false
     }
   },
+
   computed: {
     displayedVouchers() {
-      if (this.showAllVouchersFlag) {
-        return this.user.vouchers;
-      }
-      return this.user.vouchers.slice(0, 2);
+      return this.showAllVouchersFlag
+        ? this.user.vouchers
+        : this.user.vouchers.slice(0, 2)
     }
   },
+
   mounted() {
-    this.loadUserData();
-    this.loadDarkModePreference();
-    this.fetchCurrentUser();
-    this.loadSavedVouchers();
+    this.loadUserData()
+    this.loadDarkModePreference()
+    this.fetchCurrentUser()
+    this.loadSavedVouchers()
   },
-  
+
   activated() {
-    // Refresh user data when component is activated (navigated to)
-    this.fetchCurrentUser();
+    this.fetchCurrentUser()
   },
-  
+
   watch: {
     'user.loyalty_points'(newPoints, oldPoints) {
-      console.log('🔄 Profile loyalty points changed:', { old: oldPoints, new: newPoints });
-      // Force update when points change
-      this.$forceUpdate();
+      console.log('🔄 Profile loyalty points changed:', { old: oldPoints, new: newPoints })
+      this.$forceUpdate()
     },
     '$root.isDarkMode'(newVal) {
-      this.isDarkMode = newVal;
+      this.isDarkMode = newVal
     }
   },
+
   methods: {
+    // -----------------------------
+    // DARK MODE (Restored)
+    // -----------------------------
+    loadDarkModePreference() {
+      const darkMode = localStorage.getItem('ramyeon_dark_mode')
+      this.isDarkMode = darkMode === 'true'
+    },
+
+    // -----------------------------
+    // USER SESSION / PROFILE LOGIC
+    // -----------------------------
     loadUserData() {
-      // Load user data from localStorage
-      const userSession = localStorage.getItem('ramyeon_user_session');
+      const userSession = localStorage.getItem('ramyeon_user_session')
       if (userSession) {
-        const userData = JSON.parse(userSession);
+        const userData = JSON.parse(userSession)
         this.user = {
           ...userData,
-          vouchers: [],
-          pointsQRCode: userData.pointsQRCode || this.generatePointsQRCode()
-        };
+          vouchers: []
+        }
       } else {
-        // Default user data if no session
         this.user = {
           firstName: 'Guest',
           lastName: 'User',
           email: 'guest@ramyeoncorner.com',
           points: 3280,
-          vouchers: [],
-          pointsQRCode: this.generatePointsQRCode()
-        };
+          vouchers: []
+        }
       }
     },
 
     loadSavedVouchers() {
-      // Load saved vouchers from localStorage
-      const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]');
-      this.user.vouchers = savedVouchers;
+      const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]')
+      this.user.vouchers = savedVouchers
     },
 
     async fetchCurrentUser() {
       try {
-        console.log('🔍 DEBUG: Profile fetching user data...');
-        
-        // Check if user is logged in
-        const token = localStorage.getItem('access_token');
-        console.log('🔍 DEBUG: JWT Token exists:', !!token);
-        
+        console.log('🔍 Fetching profile...')
+
+        const token = localStorage.getItem('access_token')
         if (!token) {
-          console.log('⚠️ No JWT token - user not logged in');
-          return;
+          console.log('⚠️ No token - guest mode')
+          return
         }
-        
+
         const { authAPI } = await import('../services/api.js')
-        console.log('🔍 DEBUG: Calling authAPI.getProfile()...');
         const response = await authAPI.getProfile()
-        console.log('🔍 DEBUG: Profile API Response:', response);
-        
-        // Handle the response structure (same as Cart component)
-        let user;
-        if (response && response.customer) {
-          user = response.customer;
-          console.log('🔍 DEBUG: Using response.customer:', user);
-        } else {
-          user = response;
-          console.log('🔍 DEBUG: Using direct response:', user);
-        }
-        
-        console.log('🔍 DEBUG: Final user object:', user);
-        console.log('🔍 DEBUG: User loyalty_points:', user.loyalty_points);
-        
+
+        let user = response.customer ? response.customer : response
+
         const first = user.first_name || user.firstName || (user.full_name?.split(' ')[0])
         const last = user.last_name || user.lastName || (user.full_name?.split(' ').slice(1).join(' ') || '')
+
         this.user = {
           ...this.user,
           firstName: first || this.user.firstName,
           lastName: last || this.user.lastName,
           email: user.email || this.user.email,
-          loyalty_points: user.loyalty_points || 0 // Update with real points from database
+          loyalty_points: user.loyalty_points || 0
         }
-        
-        console.log('✅ Profile loaded with loyalty points:', this.user.loyalty_points);
-        
-        // Force Vue to update the UI
-        this.$forceUpdate();
+
       } catch (e) {
-        console.error('❌ Profile fetch error:', e);
-        console.log('💡 To fix: Make sure you are logged in and backend is running');
-        
-        // For debugging: Set some test points
-        this.user.loyalty_points = 50;
-        console.log('🧪 Using test points for debugging:', this.user.loyalty_points);
+        console.error('❌ Profile fetch error:', e)
+        this.user.loyalty_points = 50 // fallback
       }
     },
 
-    loadDarkModePreference() {
-      const darkMode = localStorage.getItem('ramyeon_dark_mode');
-      this.isDarkMode = darkMode === 'true';
+    // -----------------------------
+    // VOUCHER MODAL HANDLERS
+    // -----------------------------
+    openVoucherModal(voucher) {
+      this.selectedVoucher = voucher
+      this.showVoucherModal = true
     },
 
-    generatePointsQRCode() {
-      return `POINTS-${this.user.email || 'guest'}-${Date.now()}`;
-    },
-    
-    // Method to refresh profile data (can be called from other components)
-    async refreshProfile() {
-      console.log('🔄 Manually refreshing profile data...');
-      await this.fetchCurrentUser();
-      this.$forceUpdate();
+    closeVoucherModal() {
+      this.showVoucherModal = false
+      this.selectedVoucher = {}
     },
 
+    handleUseVoucher(voucher) {
+      console.log('Using voucher:', voucher)
+      this.showMessage('Voucher applied successfully!', 'success')
+      this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id)
+
+      const saved = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]')
+      localStorage.setItem(
+        'ramyeon_saved_vouchers',
+        JSON.stringify(saved.filter(v => v.id !== voucher.id))
+      )
+    },
+
+    handleSaveVoucher() {
+      this.showMessage('Voucher saved for later!', 'info')
+      this.loadSavedVouchers()
+    },
+
+    handleRemoveVoucher(voucher) {
+      this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id)
+      this.showMessage('Voucher removed!', 'info')
+    },
+
+    showAllVouchers() {
+      this.showAllVouchersFlag = !this.showAllVouchersFlag
+    },
+
+    // -----------------------------
+    // SMALL UTILS
+    // -----------------------------
     getVoucherIcon(title) {
       const icons = {
         'Shin Ramyun': '🍜',
@@ -309,119 +323,34 @@ export default {
         'Social Signup Bonus': '🎁',
         'Tteokbokki': '🌶️',
         'Kimchi': '🥬',
-        'default': '🎫'
-      };
-      return icons[title] || icons.default;
-    },
-
-    openVoucherModal(voucher) {
-      this.selectedVoucher = voucher;
-      this.showVoucherModal = true;
-    },
-
-    closeVoucherModal() {
-      this.showVoucherModal = false;
-      this.selectedVoucher = {};
-    },
-
-    handleUseVoucher(voucher) {
-      // Handle voucher usage
-      console.log('Using voucher:', voucher);
-      
-      // Show success message
-      this.showMessage('Voucher applied successfully!', 'success');
-      
-      // Remove voucher from user's vouchers (simulate usage)
-      this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id);
-      
-      // Update localStorage - remove from saved vouchers
-      const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]');
-      const updatedVouchers = savedVouchers.filter(v => v.id !== voucher.id);
-      localStorage.setItem('ramyeon_saved_vouchers', JSON.stringify(updatedVouchers));
-    },
-
-    handleSaveVoucher(voucher) {
-      // Handle voucher saving
-      console.log('Saving voucher:', voucher);
-      this.showMessage('Voucher saved for later!', 'info');
-      
-      // Reload vouchers to reflect any changes
-      this.loadSavedVouchers();
-    },
-
-    handleRemoveVoucher(voucher) {
-      // Handle voucher removal
-      console.log('Removing voucher:', voucher);
-      
-      // Remove from UI
-      this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id);
-      
-      // Show success message
-      this.showMessage('Voucher removed!', 'info');
-    },
-
-    showAllVouchers() {
-      this.showAllVouchersFlag = !this.showAllVouchersFlag;
-    },
-
-    showPointsHistory() {
-      // Show points history modal
-      this.showPointsHistoryModal = true;
-    },
-
-    updateUserSession() {
-      const userSession = {
-        ...this.user,
-        loginTime: new Date().toISOString()
-      };
-      localStorage.setItem('ramyeon_user_session', JSON.stringify(userSession));
+        default: '🎫'
+      }
+      return icons[title] || icons.default
     },
 
     showMessage(text, type) {
-      // Create and show a temporary message
-      const messageDiv = document.createElement('div');
-      messageDiv.className = `message ${type}`;
-      messageDiv.textContent = text;
-      messageDiv.style.position = 'fixed';
-      messageDiv.style.top = '20px';
-      messageDiv.style.right = '20px';
-      messageDiv.style.zIndex = '9999';
-      messageDiv.style.borderRadius = '8px';
-      messageDiv.style.padding = '15px 20px';
-      messageDiv.style.fontWeight = '500';
-      messageDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-      messageDiv.style.animation = 'slideInRight 0.3s ease-out';
+      const msg = document.createElement('div')
+      msg.className = `message ${type}`
+      msg.textContent = text
+      msg.style.position = 'fixed'
+      msg.style.top = '20px'
+      msg.style.right = '20px'
+      msg.style.padding = '15px 20px'
+      msg.style.zIndex = '9999'
+      msg.style.borderRadius = '8px'
+      msg.style.fontWeight = '600'
 
-      // Set colors based on type
-      if (type === 'success') {
-        messageDiv.style.background = '#d4edda';
-        messageDiv.style.color = '#155724';
-        messageDiv.style.border = '1px solid #c3e6cb';
-      } else if (type === 'error') {
-        messageDiv.style.background = '#f8d7da';
-        messageDiv.style.color = '#721c24';
-        messageDiv.style.border = '1px solid #f5c6cb';
-      } else if (type === 'info') {
-        messageDiv.style.background = '#cce7ff';
-        messageDiv.style.color = '#004085';
-        messageDiv.style.border = '1px solid #b3d7ff';
-      }
+      document.body.appendChild(msg)
 
-      document.body.appendChild(messageDiv);
-
-      // Remove message after 3 seconds
       setTimeout(() => {
-        if (messageDiv.parentNode) {
-          messageDiv.style.animation = 'slideOutRight 0.3s ease-in';
-          setTimeout(() => {
-            document.body.removeChild(messageDiv);
-          }, 300);
-        }
-      }, 3000);
+        if (msg.parentNode) msg.remove()
+      }, 3000)
     }
   }
 }
 </script>
+
+
 
 <style src="./Profile.css" scoped></style>
 

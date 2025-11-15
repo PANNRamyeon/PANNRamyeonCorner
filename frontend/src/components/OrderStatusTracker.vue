@@ -1,11 +1,5 @@
 <template>
   <div class="order-status-tracker">
-    <!-- Order ID Display (NEW) -->
-    <div v-if="orderId" class="order-id-display">
-      <span class="order-id-label">Order ID:</span>
-      <span class="order-id-value">{{ orderId }}</span>
-    </div>
-
     <!-- Current Status Badge -->
     <div class="current-status" :class="`status-${statusInfo.color}`">
       <span class="status-icon">{{ statusInfo.icon }}</span>
@@ -94,19 +88,16 @@ export default {
     refreshInterval: {
       type: Number,
       default: 30000 // 30 seconds
-    },
-    initialStatusHistory: {
-      type: Array,
-      default: () => []
     }
   },
   data() {
     return {
       status: this.currentStatus,
-      statusHistory: this.initialStatusHistory || [],
+      statusHistory: [],
       isRefreshing: false,
       refreshTimer: null,
-      isMounted: false
+      isMounted: false,
+      orderNotFound: false // Track if order doesn't exist in backend
     };
   },
   computed: {
@@ -119,12 +110,6 @@ export default {
     currentStatus(newStatus) {
       if (newStatus && newStatus !== this.status) {
         this.status = newStatus;
-      }
-    },
-    // Watch for status history prop changes
-    initialStatusHistory(newHistory) {
-      if (newHistory && newHistory.length > 0) {
-        this.statusHistory = newHistory;
       }
     },
     // Watch autoRefresh prop changes
@@ -158,9 +143,6 @@ export default {
   },
   methods: {
     getStatusInfo(statusCode) {
-      // Normalize status code for alternative names
-      const normalizedStatus = this.normalizeStatusCode(statusCode);
-      
       const statusMap = {
         'pending': {
           label: 'Order Pending',
@@ -183,13 +165,6 @@ export default {
           color: 'blue',
           progress: 40
         },
-        'processing': {
-          label: 'Processing Order',
-          description: 'We are processing and preparing your order',
-          icon: '⚙️',
-          color: 'blue',
-          progress: 40
-        },
         'cooking': {
           label: 'Cooking',
           description: 'Your food is being prepared in our kitchen',
@@ -206,13 +181,6 @@ export default {
         },
         'out_for_delivery': {
           label: 'Out for Delivery',
-          description: 'Your order is on the way to you',
-          icon: '🚚',
-          color: 'blue',
-          progress: 90
-        },
-        'on_the_way': {
-          label: 'On the Way',
           description: 'Your order is on the way to you',
           icon: '🚚',
           color: 'blue',
@@ -241,24 +209,13 @@ export default {
         }
       };
 
-      return statusMap[normalizedStatus] || {
+      return statusMap[statusCode] || {
         label: 'Unknown Status',
         description: 'Status information not available',
         icon: '❓',
         color: 'gray',
         progress: 0
       };
-    },
-
-    normalizeStatusCode(statusCode) {
-      // Handle alternative status names
-      const aliasMap = {
-        'processing': 'processing',
-        'on_the_way': 'on_the_way',
-        'out_for_delivery': 'on_the_way',
-      };
-      
-      return aliasMap[statusCode] || statusCode;
     },
 
     getStatusLabel(statusCode) {
@@ -268,6 +225,12 @@ export default {
     async fetchStatus() {
       // Don't fetch if component is unmounted
       if (!this.isMounted) return;
+      
+      // Validate orderId before fetching
+      if (!this.orderId || this.orderId === 'undefined' || this.orderId === 'null') {
+        console.warn('⚠️ Invalid orderId, skipping status fetch:', this.orderId);
+        return;
+      }
       
       try {
         const result = await ordersAPI.getStatus(this.orderId);
@@ -286,10 +249,29 @@ export default {
             statusInfo: result.data.status_info
           });
         } else if (result.error) {
-          console.warn('Failed to fetch order status:', result.error);
+          // If order not found, disable auto-refresh to prevent repeated 404s
+          if (result.error === 'Order not found') {
+            this.orderNotFound = true;
+            this.clearAutoRefresh(); // Stop trying to refresh
+            return;
+          }
+          // Only log if it's not a 404 (order not found is expected for old/localStorage orders)
+          if (result.error !== 'Not authenticated') {
+            console.warn('Failed to fetch order status:', result.error);
+          }
         }
       } catch (error) {
-        console.error('Error fetching order status:', error);
+        // Don't log 404 errors as they're expected for orders that don't exist in backend
+        if (error.response?.status === 404) {
+          // Order doesn't exist in backend (probably from localStorage)
+          this.orderNotFound = true;
+          this.clearAutoRefresh(); // Stop trying to refresh
+          return;
+        }
+        // Only log other errors
+        if (error.response?.status !== 404) {
+          console.error('Error fetching order status:', error);
+        }
       }
     },
 
@@ -313,10 +295,15 @@ export default {
       // Clear existing timer first
       this.clearAutoRefresh();
       
+      // Don't setup auto-refresh if order was not found (404)
+      if (this.orderNotFound) {
+        return;
+      }
+      
       // Only setup if interval is valid
       if (this.refreshInterval > 0) {
         this.refreshTimer = setInterval(() => {
-          if (this.isMounted) {
+          if (this.isMounted && !this.orderNotFound) {
             this.fetchStatus();
           }
         }, this.refreshInterval);
@@ -355,30 +342,6 @@ export default {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Order ID Display */
-.order-id-display {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: #f9fafb;
-  border-left: 4px solid #ef4444;
-  border-radius: 6px;
-}
-
-.order-id-label {
-  font-size: 14px;
-  color: #6b7280;
-  font-weight: 500;
-  margin-right: 8px;
-}
-
-.order-id-value {
-  font-size: 16px;
-  color: #ef4444;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-  letter-spacing: 0.5px;
 }
 
 /* Current Status Badge */

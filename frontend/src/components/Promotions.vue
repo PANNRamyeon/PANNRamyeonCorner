@@ -15,16 +15,16 @@
     </div>
     
     <!-- No Promotions State -->
-    <div v-else-if="!isLoading && promotions.length === 0" class="empty-promotions">
+    <div v-if="!isLoading && promotions.length === 0" class="empty-promotions">
       <div class="empty-icon">🎁</div>
       <h3>No Active Promotions</h3>
       <p>Check back later for exciting deals and offers!</p>
     </div>
     
     <!-- Main Content -->
-    <main v-else class="main-content">
+   <main v-if="!isLoading && !error" class="main-content">
       <!-- Flash Sale Section -->
-      <section class="flash-sale-section">
+       <section class="flash-sale-section">
         <div class="flash-sale-card" :class="{ 'disabled': !isLoggedIn }" @click="handlePromotionClick('FLASH30', 'Flash Sale')">
           <div class="flash-sale-content">
             <div class="flash-sale-image">
@@ -250,20 +250,50 @@
     </main>
 
     <!-- Modal for QR Code -->
+    <!-- Modal for Promo Code -->
     <div v-if="showModal" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         <h3>{{ modalTitle }}</h3>
-        <div v-if="isTextCode" class="text-code">
+
+        <!-- TEXT PROMO CODE DISPLAY -->
+        <div class="text-code">
           <p>Your promo code:</p>
+
           <div class="code-display">{{ currentCode }}</div>
+
           <p class="code-instruction">Show this code to the cashier</p>
+
+          <!-- COPY BUTTON (Same design as SAVE buttons) -->
+          <button
+            class="futuristic-save-mini"
+            @click="copyCode(currentCode)"
+          >
+            <span class="btn-content">
+              📋 Copy Code
+            </span>
+          </button>
+
+          <!-- SAVE BUTTON (Same design as other save buttons) -->
+          <button
+            class="futuristic-save-mini"
+            @click="savePromotion(currentCode, modalTitle, 'Saved Promotion')"
+          >
+            <span class="btn-content">
+              💾 Save for Later
+            </span>
+          </button>
         </div>
-        <div v-else class="qr-code">
+
+        <!-- QR SECTION BUT HIDDEN (do not remove) -->
+        <!-- <div v-else class="qr-code" style="display:none;">
           <canvas ref="qrCanvas"></canvas>
           <p class="qr-instruction">Scan this QR code to apply the promotion</p>
-        </div>
+        </div>-->
+
         <button @click="closeModal" class="close-btn">Close</button>
       </div>
+
+
     </div>
   </div>
 </template>
@@ -318,21 +348,27 @@ export default {
     },
     
     topItems() {
-      // Get percentage promotions for top section
       return this.promotions
-        .filter(p => p.type === 'percentage' && !this.flashSalePromotions.includes(p))
+        .filter(p =>
+          p.type === 'percentage' &&
+          !this.flashSalePromotions.includes(p) &&
+          !['pwd', 'senior citizen'].includes(p.name?.toLowerCase())
+        )
         .slice(0, 3)
-        .map(p => this.formatPromotionAsItem(p))
+        .map(p => this.formatPromotionAsItem(p));
     },
     
     bottomItems() {
-      // Get remaining promotions for bottom section
       return this.promotions
-        .filter(p => !this.flashSalePromotions.includes(p) && 
-                     !this.topItems.some(item => item.code === p.promotion_id))
+        .filter(p =>
+          !this.flashSalePromotions.includes(p) &&
+          !this.topItems.some(item => item.code === p.promotion_id) &&
+          !['pwd', 'senior citizen'].includes(p.name?.toLowerCase())
+        )
         .slice(0, 3)
-        .map(p => this.formatPromotionAsItem(p))
+        .map(p => this.formatPromotionAsItem(p));
     },
+
     
     specialOffers() {
       // Get fixed amount and buy_x_get_y promotions

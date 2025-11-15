@@ -130,7 +130,7 @@
                 </div>
                 <h3>Sign Up and get exclusive deals!</h3>
               </div>
-              <!----><div class="newsletter-form" :class="{ 'success': subscriptionSuccess, 'error': subscriptionError }">
+              <!--<div class="newsletter-form" :class="{ 'success': subscriptionSuccess, 'error': subscriptionError }">
                 <div class="input-container">
                   <input 
                     type="email" 
@@ -170,12 +170,12 @@
                   <path d="M7 11V7A5 5 0 0 1 17 7V11" stroke="currentColor" stroke-width="2"/>
                 </svg>
                 we won't spam, read our <a href="#" class="email-policy-link">email policy</a>
-              </p>
+              </p>-->
             </div>
             
             <!-- Legal Pages -->
             <div class="footer-links">
-              <div class="footer-column">
+            <!--  <div class="footer-column">
                 <h4>Legal Pages</h4>
                 <ul>
                   <li><a href="#">Terms and conditions</a></li>
@@ -183,12 +183,12 @@
                   <li><a href="#">Cookies</a></li>
             
                 </ul>
-              </div>
+              </div>-->
             </div>
 
             <!-- Important Links -->
             <div class="footer-links">
-              <div class="footer-column">
+             <!-- <div class="footer-column">
                 <h4>Important Links</h4>
                 <ul>
                   <li><a href="#">Get help</a></li>
@@ -196,7 +196,7 @@
                   <li><a href="#">Sign up to deliver</a></li>
                   <li><a href="#">Create a business account</a></li>
                 </ul>
-              </div>
+              </div>-->
             </div>
         </div>
       </div>
@@ -295,8 +295,14 @@ export default {
     this.checkUserSession();
     this.loadDarkModePreference();
     this.loadCartItems();
+    window.addEventListener('hashchange', this.handleHashChange);
   },
   methods: {
+    handleHashChange() {
+      console.log("🔙 Back button detected. Hash:", window.location.hash);
+      this.checkURLHash();   // Re-read URL and update currentPage
+    },
+
     checkURLHash() {
       const rawHash = window.location.hash || '';
 

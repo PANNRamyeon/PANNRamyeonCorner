@@ -20,7 +20,7 @@
             </p>
           </div>
           
-          <div class="voucher-tabs">
+         <!-- <div class="voucher-tabs">
             <button 
               :class="['tab-btn', { active: activeTab === 'qr' }]"
               @click="activeTab = 'qr'"
@@ -33,10 +33,10 @@
             >
               Text Code
             </button>
-          </div>
+          </div>-->
           
-          <div class="tab-content">
-            <div v-if="activeTab === 'qr'" class="qr-tab">
+         <!-- <div class="tab-content">
+           <div v-if="activeTab === 'qr'" class="qr-tab">
               <QRCode 
                 :code="voucher.qrCode"
                 :title="'Scan to Redeem'"
@@ -64,9 +64,9 @@
                 </p>
               </div>
             </div>
-          </div>
+          </div>-->
           
-          <div class="voucher-terms">
+         <!-- <div class="voucher-terms">
             <h4>Terms & Conditions</h4>
             <ul>
               <li>Valid for {{ getValidityPeriod() }}</li>
@@ -75,7 +75,7 @@
               <li>Valid for dine-in, takeout, and delivery</li>
               <li>One use per customer</li>
             </ul>
-          </div>
+          </div>-->
           
           <div class="modal-actions">
             <button class="use-voucher-btn" @click="useVoucher" :disabled="isUsing">
@@ -131,12 +131,12 @@
 </template>
 
 <script>
-import QRCode from './QRCode.vue'
+// import QRCode from './QRCode.vue'  <!-- QR HIDDEN -->
 
 export default {
   name: 'VoucherModal',
   components: {
-    QRCode
+    // QRCode    <!-- QR HIDDEN -->
   },
   props: {
     voucher: {
@@ -148,7 +148,7 @@ export default {
         subtitle: '',
         discount: '',
         code: '',
-        qrCode: ''
+        // qrCode: ''   <!-- QR HIDDEN -->
       })
     },
     isVisible: {
@@ -159,7 +159,8 @@ export default {
   emits: ['close', 'useVoucher', 'saveVoucher'],
   data() {
     return {
-      activeTab: 'qr',
+      // activeTab: 'qr',   <!-- QR HIDDEN -->
+      activeTab: '',        // to avoid showing QR tab
       isCopied: false,
       isSaved: false,
       isUsing: false,
@@ -171,13 +172,13 @@ export default {
     isVisible(newVal) {
       if (newVal) {
         // Reset state when modal opens
-        this.activeTab = 'qr';
+        // this.activeTab = 'qr';   <!-- QR HIDDEN -->
+        this.activeTab = '';
         this.isCopied = false;
         this.checkIfSaved();
-        // Prevent body scroll
+
         document.body.style.overflow = 'hidden';
       } else {
-        // Restore body scroll
         document.body.style.overflow = '';
       }
     }
@@ -186,37 +187,30 @@ export default {
     closeModal() {
       this.$emit('close');
     },
-    
+
     async copyCode() {
       try {
         await navigator.clipboard.writeText(this.voucher.code);
         this.isCopied = true;
-        setTimeout(() => {
-          this.isCopied = false;
-        }, 2000);
+        setTimeout(() => { this.isCopied = false }, 2000);
       } catch (err) {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = this.voucher.code;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
-        
+
         this.isCopied = true;
-        setTimeout(() => {
-          this.isCopied = false;
-        }, 2000);
+        setTimeout(() => { this.isCopied = false }, 2000);
       }
     },
-    
+
     async useVoucher() {
       this.isUsing = true;
-      
+
       try {
-        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
         this.$emit('useVoucher', this.voucher);
         this.closeModal();
       } catch (error) {
@@ -225,30 +219,28 @@ export default {
         this.isUsing = false;
       }
     },
-    
+
     async saveVoucher() {
       if (!this.isSaved) {
         this.isSaving = true;
-        
+
         try {
-          // Simulate API call
           await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Save voucher to localStorage
+
           const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]');
-          const voucherExists = savedVouchers.find(v => v.id === this.voucher.id);
-          
-          if (!voucherExists) {
+          const exists = savedVouchers.find(v => v.id === this.voucher.id);
+
+          if (!exists) {
             savedVouchers.push({
               ...this.voucher,
               savedAt: new Date().toISOString()
             });
             localStorage.setItem('ramyeon_saved_vouchers', JSON.stringify(savedVouchers));
           }
-          
+
           this.isSaved = true;
           this.$emit('saveVoucher', this.voucher);
-          
+
         } catch (error) {
           console.error('Error saving voucher:', error);
         } finally {
@@ -256,34 +248,32 @@ export default {
         }
       }
     },
-    
+
     async removeVoucher() {
       this.isRemoving = true;
-      
+
       try {
-        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Remove voucher from localStorage
+
         const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]');
-        const updatedVouchers = savedVouchers.filter(v => v.id !== this.voucher.id);
-        localStorage.setItem('ramyeon_saved_vouchers', JSON.stringify(updatedVouchers));
-        
+        const updated = savedVouchers.filter(v => v.id !== this.voucher.id);
+        localStorage.setItem('ramyeon_saved_vouchers', JSON.stringify(updated));
+
         this.isSaved = false;
         this.$emit('removeVoucher', this.voucher);
-        
+
       } catch (error) {
         console.error('Error removing voucher:', error);
       } finally {
         this.isRemoving = false;
       }
     },
-    
+
     checkIfSaved() {
       const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]');
       this.isSaved = savedVouchers.some(v => v.id === this.voucher.id);
     },
-    
+
     getVoucherDescription() {
       const descriptions = {
         'Welcome Bonus': 'Get 25% off your first order! Perfect way to try our delicious ramyeon.',
@@ -292,12 +282,11 @@ export default {
         'Social Signup Bonus': 'Thank you for joining us through social media! Enjoy 30% off.',
         'default': `Enjoy ${this.voucher.discount} on ${this.voucher.title}. Don't miss out on this great deal!`
       };
-      
+
       return descriptions[this.voucher.title] || descriptions.default;
     },
-    
+
     getValidityPeriod() {
-      // Generate validity period based on voucher type
       const periods = {
         'Welcome Bonus': '30 days from signup',
         'Shin Ramyun': '14 days from issue',
@@ -305,17 +294,17 @@ export default {
         'Social Signup Bonus': '30 days from signup',
         'default': '30 days from issue'
       };
-      
+
       return periods[this.voucher.title] || periods.default;
     }
   },
-  
+
   beforeUnmount() {
-    // Ensure body scroll is restored if component is destroyed while modal is open
     document.body.style.overflow = '';
   }
 }
 </script>
+
 
 <style scoped>
 .modal-overlay {

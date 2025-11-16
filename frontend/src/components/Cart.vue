@@ -475,18 +475,24 @@ export default {
       const item = this.cartItems.find(item => item.id === itemId);
       if (item) {
         await this.updateCartItemQuantity(item.product_id || item.id, item.quantity + 1);
+        // Recalculate promotion discount after quantity change
+        await this.recalculateExistingPromotions();
       }
     },
     async decreaseQuantity(itemId) {
       const item = this.cartItems.find(item => item.id === itemId);
       if (item && item.quantity > 1) {
         await this.updateCartItemQuantity(item.product_id || item.id, item.quantity - 1);
+        // Recalculate promotion discount after quantity change
+        await this.recalculateExistingPromotions();
       }
     },
     async removeItem(itemId) {
       const item = this.cartItems.find(item => item.id === itemId);
       if (item) {
         await this.removeFromCart(item.product_id || item.id);
+        // Recalculate promotion discount after item removal
+        await this.recalculateExistingPromotions();
       }
     },
     
@@ -1218,10 +1224,7 @@ export default {
         let paymentStatus = 'pending';
         
         // Generate order ID
-        let orderId = 'ORDER-' + Date.now();
-        
-        // Track payment attempt
-        this.trackPaymentAttempt(orderId, 'initiated');
+        const orderId = 'ORDER-' + Date.now();
         
         // Prepare order data using composable
         const orderData = {
@@ -1254,12 +1257,6 @@ export default {
           }
           backendOrderIdFromCreate = (createRes && (createRes.data?.order_id || createRes.order_id)) || null;
           console.log('✅ Backend order created:', backendOrderIdFromCreate);
-          
-          // Use the backend order ID instead of temporary one
-          if (backendOrderIdFromCreate) {
-            orderId = backendOrderIdFromCreate;
-            console.log('🔄 Using backend order ID:', orderId);
-          }
         }
         
         // Order created successfully
@@ -1287,9 +1284,7 @@ export default {
             console.log('GCash API response:', gcashResult);
             
             if (gcashResult && gcashResult.data && gcashResult.data.attributes && gcashResult.data.attributes.redirect) {
-              // Track successful initiation
               paymentReference = gcashResult.data.id;
-              this.trackPaymentAttempt(orderId, 'redirected', 'gcash');
               // Store pending order before redirect
               this.storePendingOrder(orderId, this.cartItems, this.finalTotal, paymentReference, paymentStatus);
               // Redirect to GCash checkout
@@ -1301,7 +1296,6 @@ export default {
             }
           } catch (error) {
             console.error('❌ GCash payment error:', error);
-            this.trackPaymentAttempt(orderId, 'failed', 'gcash', error.message);
             alert('Failed to process GCash payment:\n' + error.message + '\n\nPlease try again or select a different payment method.');
             this.isProcessing = false;
             return;
@@ -1314,9 +1308,7 @@ export default {
             console.log('PayMaya API response:', paymayaResult);
             
             if (paymayaResult && paymayaResult.data && paymayaResult.data.attributes && paymayaResult.data.attributes.redirect) {
-              // Track successful initiation
               paymentReference = paymayaResult.data.id;
-              this.trackPaymentAttempt(orderId, 'redirected', 'paymaya');
               // Store pending order before redirect
               this.storePendingOrder(orderId, this.cartItems, this.finalTotal, paymentReference, paymentStatus);
               // Redirect to PayMaya checkout
@@ -1328,7 +1320,6 @@ export default {
             }
           } catch (error) {
             console.error('❌ PayMaya payment error:', error);
-            this.trackPaymentAttempt(orderId, 'failed', 'paymaya', error.message);
             alert('Failed to process PayMaya payment:\n' + error.message + '\n\nPlease try again or select a different payment method.');
             this.isProcessing = false;
             return;
@@ -1341,9 +1332,7 @@ export default {
             console.log('Card API response:', cardResult);
             
             if (cardResult && cardResult.data && cardResult.data.attributes && cardResult.data.attributes.redirect) {
-              // Track successful initiation
               paymentReference = cardResult.data.id;
-              this.trackPaymentAttempt(orderId, 'redirected', 'card');
               // Store pending order before redirect
               this.storePendingOrder(orderId, this.cartItems, this.finalTotal, paymentReference, paymentStatus);
               // Redirect to card payment checkout
@@ -1355,7 +1344,6 @@ export default {
             }
           } catch (error) {
             console.error('❌ Card payment error:', error);
-            this.trackPaymentAttempt(orderId, 'failed', 'card', error.message);
             alert('Failed to process card payment:\n' + error.message + '\n\nPlease try again or select a different payment method.');
             this.isProcessing = false;
             return;
@@ -1368,9 +1356,7 @@ export default {
             console.log('GrabPay API response:', grabpayResult);
             
             if (grabpayResult && grabpayResult.data && grabpayResult.data.attributes && grabpayResult.data.attributes.redirect) {
-              // Track successful initiation
               paymentReference = grabpayResult.data.id;
-              this.trackPaymentAttempt(orderId, 'redirected', 'grabpay');
               // Store pending order before redirect
               this.storePendingOrder(orderId, this.cartItems, this.finalTotal, paymentReference, paymentStatus);
               // Redirect to GrabPay QR checkout
@@ -1382,16 +1368,15 @@ export default {
             }
           } catch (error) {
             console.error('❌ GrabPay payment error:', error);
-            this.trackPaymentAttempt(orderId, 'failed', 'grabpay', error.message);
             alert('Failed to process GrabPay payment:\n' + error.message + '\n\nPlease try again or select a different payment method.');
             this.isProcessing = false;
             return;
           }
         }
         
-        // Create order data (using the backend order ID if available)
+        // Create order data
         const localOrderData = {
-          id: orderId,  // This is now the backend order ID (ONLINE-XXXXX) for COD
+          id: orderId,
           items: this.cartItems,
           deliveryType: this.deliveryType,
           deliveryAddress: this.deliveryAddress,
@@ -1409,7 +1394,7 @@ export default {
           status: paymentStatus === 'succeeded' ? 'confirmed' : 'pending',
           paymentReference: paymentReference,
           paymentStatus: paymentStatus,
-          backendOrderId: orderId  // Store the backend order ID
+          backendOrderId: backendOrderIdFromCreate
         };
         
         // Backend order was already created by createOrder(); skip duplicate calls
@@ -1438,16 +1423,15 @@ export default {
         // during order creation in OnlineTransactionService.create_online_order()
         // No need for a separate API call here
         
-        // Calculate points earned for display purposes
-        // Rule: 0.20 points per ₱1 in ORIGINAL subtotal
-        // Rule: If customer uses loyalty points, they earn ZERO points
-        const pointsEarned = this.useLoyaltyPoints && this.pointsToRedeem > 0 
-          ? 0 
-          : Math.floor(Math.max(0, this.subtotal) * 0.20);
+        // Calculate points earned for display purposes (20% of subtotal after ALL discounts)
+        // Customers should only earn points on the amount they actually pay
+        const subtotalAfterDiscount = this.subtotal - (this.pointsDiscount || 0) - (this.promotionDiscount || 0);
+        const pointsEarned = Math.floor(Math.max(0, subtotalAfterDiscount) * 0.20);
         console.log('💎 Points earned calculation:', {
           subtotal: this.subtotal,
-          usedLoyaltyPoints: this.useLoyaltyPoints,
-          pointsToRedeem: this.pointsToRedeem,
+          pointsDiscount: this.pointsDiscount,
+          promotionDiscount: this.promotionDiscount,
+          subtotalAfterDiscount: subtotalAfterDiscount,
           pointsEarned: pointsEarned
         })
         
@@ -1462,15 +1446,9 @@ export default {
           }
         }
         
-        // Show confirmation modal with the correct backend order ID
-        console.log('🔍 DEBUG - Points values before setting confirmedOrder:');
-        console.log('  - this.pointsToRedeem:', this.pointsToRedeem, '(type:', typeof this.pointsToRedeem + ')');
-        console.log('  - this.useLoyaltyPoints:', this.useLoyaltyPoints);
-        console.log('  - this.pointsDiscount:', this.pointsDiscount);
-        console.log('  - pointsEarned:', pointsEarned);
-        
+        // Show confirmation modal
         this.confirmedOrder = {
-          id: orderId,  // This is now the backend order ID (ONLINE-XXXXX)
+          id: localOrderData.backendOrderId || localOrderData.id,
           total: this.finalTotal.toFixed(2),
           paymentMethod: this.paymentMethod,
           deliveryType: this.deliveryType,
@@ -1481,7 +1459,6 @@ export default {
         
         console.log('🎉 Showing order confirmation modal');
         console.log('Confirmed order data:', this.confirmedOrder);
-        console.log('  - pointsUsed in confirmed order:', this.confirmedOrder.pointsUsed);
         console.log('showOrderConfirmation before:', this.showOrderConfirmation);
         
         // Use nextTick to ensure DOM is updated
@@ -1619,27 +1596,22 @@ export default {
               
               if (CART_DEBUG) console.log('[Cart] Order marked confirmed');
               
-              // Track successful payment
-              this.trackPaymentAttempt(orderId, 'succeeded', orderData.paymentMethod);
-              
               // Load user profile first
               if (CART_DEBUG) console.log('[Cart] Loading user profile...');
               this.loadUserProfile().then(async () => {
                 if (CART_DEBUG) console.log('[Cart] User profile loaded');
                 
-                // Award points for successful payment
-                // Rule: 0.20 points per ₱1 in ORIGINAL subtotal
-                // Rule: If customer uses loyalty points, they earn ZERO points
+                // Award points for successful payment (20% of subtotal after ALL discounts)
+                // Customers should only earn points on the amount they actually pay
                 if (this.userProfile && this.userProfile.id !== 'guest') {
-                  const pointsEarned = (orderData.pointsDiscount > 0 || orderData.pointsToRedeem > 0)
-                    ? 0 
-                    : Math.floor(Math.max(0, orderData.subtotal) * 0.20);
+                  const subtotalAfterDiscount = orderData.subtotal - (orderData.pointsDiscount || 0) - (orderData.promotionDiscount || 0);
+                  const pointsEarned = Math.floor(Math.max(0, subtotalAfterDiscount) * 0.20);
                   
-                  if (pointsEarned > 0) {
+                  if (subtotalAfterDiscount > 0) {
                     try {
-                      if (CART_DEBUG) console.log('[Cart] Awarding loyalty points for amount:', orderData.subtotal, '(~', pointsEarned, 'points)');
+                      if (CART_DEBUG) console.log('[Cart] Awarding loyalty points for amount:', subtotalAfterDiscount, '(~', pointsEarned, 'points)');
                       // Pass the order amount, backend will calculate points
-                      const awardResult = await this.awardPoints(orderData.subtotal, this.userProfile.id, {
+                      const awardResult = await this.awardPoints(subtotalAfterDiscount, this.userProfile.id, {
                         order_id: orderId,
                         description: `Points earned from order #${orderId} (payment return)`
                       });
@@ -1661,15 +1633,9 @@ export default {
                 
                 // Send to backend only if it wasn't already created pre-redirect
                 // Orders are now permanently stored in database via backend API
-                let finalOrderId = orderData.id;
                 if (!orderData.backendOrderId) {
                   if (CART_DEBUG) console.log('[Cart] Sending order to backend for permanent storage');
-                  const backendOrderId = await this.sendOrderToBackend(orderData);
-                  if (backendOrderId) {
-                    finalOrderId = backendOrderId;
-                    orderData.id = backendOrderId;
-                    if (CART_DEBUG) console.log('[Cart] Updated order ID to backend ID:', finalOrderId);
-                  }
+                  this.sendOrderToBackend(orderData);
                 } else {
                   if (CART_DEBUG) console.log('[Cart] Order already in database (backendOrderId exists)');
                 }
@@ -1686,12 +1652,9 @@ export default {
                 
                 this.$forceUpdate();
                 
-                // Calculate points earned for display
-                // Rule: 0.20 points per ₱1 in ORIGINAL subtotal
-                // Rule: If customer uses loyalty points, they earn ZERO points
-                const pointsEarned = (orderData.pointsDiscount > 0 || orderData.pointsToRedeem > 0)
-                  ? 0 
-                  : Math.floor(Math.max(0, orderData.subtotal) * 0.20);
+                // Calculate points earned for display (after ALL discounts)
+                const subtotalAfterDiscount = orderData.subtotal - (orderData.pointsDiscount || 0) - (orderData.promotionDiscount || 0);
+                const pointsEarned = Math.floor(Math.max(0, subtotalAfterDiscount) * 0.20);
                 
                 // Refresh user profile to show updated points
                 try {
@@ -1702,9 +1665,9 @@ export default {
                   console.error('❌ Error refreshing user profile after payment:', error);
                 }
                 
-                // Show confirmation with the final order ID
+                // Show confirmation
                 this.confirmedOrder = {
-                  id: finalOrderId,  // Use the backend order ID
+                  id: orderData.id,
                   total: orderData.total.toFixed(2),
                   paymentMethod: orderData.paymentMethod,
                   deliveryType: orderData.deliveryType,
@@ -1746,8 +1709,6 @@ export default {
             } else {
               // Payment failed or cancelled
               if (CART_DEBUG) console.log('[Cart] Payment failed/cancelled');
-              // Track failed/cancelled payment
-              this.trackPaymentAttempt(orderId, 'cancelled', orderData.paymentMethod, 'User cancelled payment');
               
               alert('Payment was not completed. Your order was not placed. Your items have been restored to the cart.');
               
@@ -1795,18 +1756,9 @@ export default {
         });
         
         console.log('✅ Order sent to backend successfully:', response);
-        
-        // Extract and return the backend order ID
-        const backendOrderId = response?.data?.order_id || response?.order_id;
-        if (backendOrderId) {
-          console.log('🔄 Backend returned order ID:', backendOrderId);
-          return backendOrderId;
-        }
-        return null;
       } catch (error) {
         console.warn('⚠️ Failed to send order to backend (this is OK, order saved locally):', error.message);
         // Don't throw - order is already saved locally, backend is optional
-        return null;
       }
     },
     
@@ -1881,20 +1833,7 @@ export default {
         console.error('❌ Error Message:', error.message || 'No error message available');
         console.error('❌ Full Error Object:', JSON.stringify(error, null, 2));
         
-        // For debugging: Use a test profile with some points
-        this.userProfile = {
-          id: 'test-user',
-          email: 'test@ramyeon.com',
-          full_name: 'Test User',
-          loyalty_points: 50 // Give test user some points for debugging
-        };
-        
-        // Sync loyalty balance with test profile points
-        if (this.setLoyaltyBalance) {
-          this.setLoyaltyBalance(this.userProfile.loyalty_points);
-        }
-        
-        console.log('🧪 Using test profile with points for debugging:', this.userProfile.loyalty_points);
+        // Don't set test profile - let it fail gracefully
         console.log('💡 To fix: Make sure you are logged in and backend is running');
         console.log('💡 Check backend logs for detailed error information');
       }
@@ -1965,38 +1904,6 @@ export default {
       }
     },
     
-    // Payment history tracking
-    trackPaymentAttempt(orderId, status, method = null, error = null) {
-      try {
-        const paymentHistory = JSON.parse(localStorage.getItem('ramyeon_payment_history') || '[]');
-        
-        const attempt = {
-          orderId: orderId,
-          method: method || this.paymentMethod,
-          status: status, // 'initiated', 'redirected', 'succeeded', 'failed', 'cancelled'
-          amount: this.finalTotal, // Use final total with discount
-          promotionApplied: this.appliedPromotion ? this.appliedPromotion.promotion_id : null,
-          discountAmount: this.promotionDiscount,
-          timestamp: new Date().toISOString(),
-          error: error,
-          userId: this.userProfile?.id || 'guest'
-        };
-        
-        paymentHistory.push(attempt);
-        
-        // Keep only last 100 payment attempts
-        if (paymentHistory.length > 100) {
-          paymentHistory.shift();
-        }
-        
-        localStorage.setItem('ramyeon_payment_history', JSON.stringify(paymentHistory));
-        console.log('Payment attempt tracked:', attempt);
-      } catch (error) {
-        console.error('Error tracking payment attempt:', error);
-      }
-    },
-    
-    
     // Setup payment diagnostics helper
     setupPaymentDiagnostics() {
       // Expose diagnostics helper in console
@@ -2004,13 +1911,12 @@ export default {
         checkEnv: () => {
           console.log('🔍 PayMongo Environment Check:');
           // Check both Vue CLI and Vite environment variables
-          // Using bracket notation to avoid Netlify secret scanner false positives
-          const publicKey = (typeof process !== 'undefined' && process.env && process.env['VUE_APP_PAYMONGO_PUBLIC_KEY']) || 
-                           (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env['VITE_PAYMONGO_PUBLIC_KEY']);
-          const secretKey = (typeof process !== 'undefined' && process.env && process.env['VUE_APP_PAYMONGO_SECRET_KEY']) || 
-                           (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env['VITE_PAYMONGO_SECRET_KEY']);
-          const mode = (typeof process !== 'undefined' && process.env && process.env['VUE_APP_PAYMONGO_MODE']) || 
-                      (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env['VITE_PAYMONGO_MODE']) || 'test';
+          const publicKey = (typeof process !== 'undefined' && process.env && process.env.VUE_APP_PAYMONGO_PUBLIC_KEY) || 
+                           (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYMONGO_PUBLIC_KEY);
+          const secretKey = (typeof process !== 'undefined' && process.env && process.env.VUE_APP_PAYMONGO_SECRET_KEY) || 
+                           (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYMONGO_SECRET_KEY);
+          const mode = (typeof process !== 'undefined' && process.env && process.env.VUE_APP_PAYMONGO_MODE) || 
+                      (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_PAYMONGO_MODE) || 'test';
           
           console.log('Public Key:', publicKey ? '✅ Set' : '❌ Not Set');
           console.log('Secret Key:', secretKey ? '✅ Set' : '❌ Not Set');
@@ -2022,12 +1928,6 @@ export default {
           }
         },
         
-        viewHistory: () => {
-          const history = JSON.parse(localStorage.getItem('ramyeon_payment_history') || '[]');
-          console.log('📊 Payment History:', history);
-          return history;
-        },
-        
         viewPendingOrder: () => {
           const pending = localStorage.getItem('ramyeon_pending_order');
           if (pending) {
@@ -2037,17 +1937,10 @@ export default {
           }
         },
         
-        clearHistory: () => {
-          localStorage.removeItem('ramyeon_payment_history');
-          console.log('✅ Payment history cleared');
-        },
-        
         help: () => {
           console.log('🛠️ Ramyeon Payment Diagnostics:');
           console.log('  ramyeonPaymentDiagnostics.checkEnv() - Check PayMongo configuration');
-          console.log('  ramyeonPaymentDiagnostics.viewHistory() - View payment history');
           console.log('  ramyeonPaymentDiagnostics.viewPendingOrder() - View pending order');
-          console.log('  ramyeonPaymentDiagnostics.clearHistory() - Clear payment history');
           console.log('  ramyeonPaymentDiagnostics.help() - Show this help');
         },
         

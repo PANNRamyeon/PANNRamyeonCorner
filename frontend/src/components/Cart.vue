@@ -384,7 +384,7 @@ const CART_DEBUG = (
 
 export default {
   name: 'Cart',
-  emits: ['setCurrentPage'],
+  emits: ['setCurrentPage', 'cartCleared'],
   setup() {
     // Initialize composables
     const onlineOrder = useOnlineOrder();
@@ -1428,6 +1428,9 @@ export default {
         console.log('🧹 Cart cleared - after:', this.cartItems.length);
         console.log('🧹 LocalStorage cart:', localStorage.getItem('ramyeon_cart'));
         
+        // Emit event to notify parent (App.vue) that cart was cleared
+        this.$emit('cartCleared');
+        
         // Force update to ensure cart UI updates
         this.$forceUpdate();
         
@@ -1677,6 +1680,10 @@ export default {
                 
                 // Clear cart completely using composable method
                 await this.clearCart();
+                
+                // Emit event to notify parent (App.vue) that cart was cleared
+                this.$emit('cartCleared');
+                
                 this.$forceUpdate();
                 
                 // Calculate points earned for display

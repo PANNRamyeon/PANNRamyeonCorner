@@ -81,7 +81,7 @@
       <Profile v-if="currentPage === 'Profile'" @setCurrentPage="setCurrentPage" />
       <ProfileSettings v-if="currentPage === 'ProfileSettings'" @setCurrentPage="setCurrentPage" />
       <Settings v-if="currentPage === 'Settings'" @setCurrentPage="setCurrentPage" />
-      <Cart v-if="currentPage === 'Cart'" @setCurrentPage="setCurrentPage" :key="cartKey" />
+      <Cart v-if="currentPage === 'Cart'" @setCurrentPage="setCurrentPage" @cartCleared="handleCartCleared" :key="cartKey" />
       <OrderHistory v-if="currentPage === 'OrderHistory'" @setCurrentPage="setCurrentPage" :key="orderHistoryKey" />
       <PaymentHistory v-if="currentPage === 'PaymentHistory'" @setCurrentPage="setCurrentPage" :key="paymentHistoryKey" />
 
@@ -442,6 +442,8 @@ export default {
         this.paymentHistoryKey++;
       } else if (page === 'Cart') {
         this.cartKey++;
+        // Reload cart items when navigating to cart page to ensure sync
+        this.loadCartItems();
       }
     },
 
@@ -648,7 +650,23 @@ export default {
           console.error('Error loading cart items:', error);
           this.cartItems = [];
         }
+      } else {
+        // Explicitly clear cartItems when localStorage is empty
+        this.cartItems = [];
       }
+    },
+    
+    handleCartCleared() {
+      // Immediately clear cartItems array for instant UI update
+      console.log('🛒 Cart cleared event received, updating App.vue cartItems');
+      this.cartItems = [];
+      // Also reload from localStorage to ensure sync (should be empty now)
+      this.loadCartItems();
+      // Force Vue to update the computed cartCount
+      this.$nextTick(() => {
+        this.$forceUpdate();
+        console.log('🛒 Cart count updated:', this.cartCount);
+      });
     }
   },
   

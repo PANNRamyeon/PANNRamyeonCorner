@@ -227,13 +227,13 @@
 
     <!-- Right side promotional content -->
     <div class="promo-content">
-      <div class="promo-badge">🎁 NEW MEMBER</div>
+    <!--  <div class="promo-badge">🎁 NEW MEMBER</div>-->
       <div class="promo-image">
         <img src="../assets/food/ramyeon-hero.jpg" alt="Delicious Ramyeon" class="ramyeon-image" />
         <div class="image-overlay"></div>
       </div>
       <div class="promo-text">
-        <div class="promo-timer">🍜 ENJOY RAMYEON YOUR WAY!</div>
+         <div class="promo-timer">🍜 ENJOY RAMYEON YOUR WAY!</div>
         <h1 class="promo-title">WELCOME BONUS</h1>
         <div class="promo-code">
           <span class="code-label">GET STARTED WITH</span>

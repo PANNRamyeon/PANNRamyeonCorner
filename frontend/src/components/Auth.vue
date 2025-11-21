@@ -306,7 +306,7 @@
 
         <!-- Right side promotional content for signup -->
         <div class="promo-content">
-          <div class="promo-badge">🎁 NEW MEMBER</div>
+        <!--  <div class="promo-badge">🎁 NEW MEMBER</div> -->
           <div class="promo-image">
             <img src="../assets/food/ramyeon-hero.jpg" alt="Delicious Ramyeon" class="ramyeon-image" />
             <div class="image-overlay"></div>

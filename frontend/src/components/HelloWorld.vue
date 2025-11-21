@@ -210,7 +210,7 @@ export default {
         {
           name: 'Ice Talk',
           price: 55,
-          image: 'https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=400&q=80'
+          image: 'https://exoticsnacks.com/cdn/shop/files/9_6243126e-1a22-4077-915e-0c23ed74b26b.png'
         },
         {
           name: 'Shin Ramyun',

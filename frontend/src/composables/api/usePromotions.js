@@ -74,31 +74,40 @@ export function usePromotions() {
    */
   const getActivePromotions = async (filters = {}) => {
     try {
-      isLoading.value = true
-      error.value = null
-      
-      console.log('🎯 Fetching active promotions')
-      
-      const result = await promotionsAPI.getActive(filters)
-      
+      isLoading.value = true;
+      error.value = null;
+
+      console.log('🎯 Fetching active promotions');
+
+      const result = await promotionsAPI.getActive(filters);
+
       if (result.success) {
-        const fetchedPromotions = result.promotions || result.data?.results || result.data || []
-        activePromotions.value = fetchedPromotions
-        promotions.value = fetchedPromotions // Sync both states
-        
-        console.log(`✅ Fetched ${fetchedPromotions.length} active promotions`)
-        return { success: true, data: fetchedPromotions }
+        let fetchedPromotions = result.promotions || result.data?.results || result.data || [];
+
+        // 🔥 ABSOLUTE SOURCE FILTER — REMOVE PWD & SENIOR HERE
+        fetchedPromotions = fetchedPromotions.filter(promo =>
+          promo.name !== 'PWD' &&
+          promo.name !== 'Senior Citizen'
+        );
+
+        activePromotions.value = fetchedPromotions;
+        promotions.value = fetchedPromotions; // keep in sync
+
+        console.log(`✅ Filtered and loaded ${fetchedPromotions.length} active promotions`);
+
+        return { success: true, data: fetchedPromotions };
       } else {
-        throw new Error(result.error || 'Failed to fetch active promotions')
+        throw new Error(result.error || 'Failed to fetch active promotions');
       }
     } catch (err) {
-      console.error('❌ Error fetching active promotions:', err)
-      error.value = err.message
-      return { success: false, error: err.message }
+      console.error('❌ Error fetching active promotions:', err);
+      error.value = err.message;
+      return { success: false, error: err.message };
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
+  }   
+
 
   /**
    * Get promotion by ID or code

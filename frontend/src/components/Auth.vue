@@ -116,13 +116,13 @@
             <div class="image-overlay"></div>
           </div>
           <div class="promo-text">
-            <div class="promo-timer">⏰ 24 HOURS ONLY</div>
+           <!-- <div class="promo-timer">⏰ 24 HOURS ONLY</div>
             <h1 class="promo-title">FLASH SALE</h1>
             <div class="promo-code">
               <span class="code-label">USE CODE:</span>
               <span class="code-value">CORNER</span>
-            </div>
-            <h3 class="promo-discount">30% OFF</h3>
+            </div>-->
+            <!-- <h3 class="promo-discount">30% OFF</h3>-->
             <button class="order-btn">
               <span>Order Now</span>
               <span class="btn-arrow">→</span>

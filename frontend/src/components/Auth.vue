@@ -311,14 +311,14 @@
             <img src="../assets/food/ramyeon-hero.jpg" alt="Delicious Ramyeon" class="ramyeon-image" />
             <div class="image-overlay"></div>
           </div>
-          <div class="promo-text">
-            <div class="promo-timer">🍜 ENJOY RAMYEON YOUR WAY!</div>
-            <h1 class="promo-title">WELCOME BONUS</h1>
+            <div class="promo-text">
+           <!-- <div class="promo-timer">🍜 ENJOY RAMYEON YOUR WAY!</div>-->
+           <!-- <h1 class="promo-title">WELCOME BONUS</h1>
             <div class="promo-code">
               <span class="code-label">GET STARTED WITH</span>
             </div>
             <h3 class="promo-discount">25% OFF</h3>
-            <p class="bonus-text">✨ Plus earn points with every order!</p>
+            <p class="bonus-text">✨ Plus earn points with every order!</p>-->
             <button class="order-btn">
               <span>Join Now</span>
               <span class="btn-arrow">→</span>

@@ -17,7 +17,7 @@
             <h3>Contact Us</h3>
           </div>
           <div class="contact-content">
-            <p>(123) 456 - 7890</p>
+            <p>0946 102 0314</p>
             <p>ramyeoncornerbislig@gmail.com</p>
           </div>
         </div>
@@ -61,15 +61,15 @@
     <section class="stats-section">
       <div class="stats-container">
         <div class="stat-item">
-          <h3>4</h3>
+          <h3>1</h3>
           <p>Locations</p>
         </div>
         <div class="stat-item">
-          <h3>1995</h3>
+          <h3>2024</h3>
           <p>Founded</p>
         </div>
         <div class="stat-item">
-          <h3>65+</h3>
+          <h3>6</h3>
           <p>Staff Members</p>
         </div>
         <div class="stat-item">
@@ -88,7 +88,7 @@
           <div class="testimonial-author">
             <div class="author-info">
               <h4>Jennifer Robson</h4>
-              <p>Los Angeles, CA</p>
+              <p>Bislig City, Surigao del Sur</p>
             </div>
           </div>
         </div>
@@ -97,7 +97,7 @@
           <div class="testimonial-author">
             <div class="author-info">
               <h4>Matt Carson</h4>
-              <p>San Diego, CA</p>
+              <p>Bislig City, Surigao del Sur</p>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@
           <div class="testimonial-author">
             <div class="author-info">
               <h4>Andy Smith</h4>
-              <p>San Francisco, CA</p>
+              <p>Bislig City, Surigao del Sur</p>
             </div>
           </div>
         </div>

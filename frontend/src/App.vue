@@ -18,7 +18,7 @@
           <div class="contact-info">
             <div class="contact-item">
               <span class="contact-icon">📞</span>
-              <span class="contact-text">(123) 456 - 7890</span>
+              <span class="contact-text">0946 102 0314</span>
             </div>
             <div class="contact-item">
               <span class="contact-icon">✉️</span>
@@ -115,7 +115,7 @@
                 Purok I, Castillo, Mangagoy,<br>
                 Bislig, Philippines
               </p>
-              <p class="footer-contact">📞 (123) 456-7890</p>
+              <p class="footer-contact">📞 0946 102 0314</p>
               <p class="footer-contact">✉️ ramyeoncornerbislig@gmail.com</p>
             </div>
 

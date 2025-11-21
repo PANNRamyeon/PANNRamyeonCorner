@@ -202,6 +202,24 @@
               </div>
             </div>
 
+            <!-- Username Field -->
+            <div class="form-group">
+              <label for="username" class="form-label">
+                <span class="label-icon">👤</span>
+                Username
+              </label>
+              <div class="input-wrapper">
+                <input
+                  type="text"
+                  id="username"
+                  v-model="signupForm.username"
+                  class="form-input"
+                  placeholder="Choose a username"
+                  required
+                />
+              </div>
+            </div>
+
             <div class="form-group">
               <label for="signupEmail" class="form-label">
                 <span class="label-icon">📧</span>
@@ -355,6 +373,7 @@ export default {
       signupForm: {
         firstName: '',
         lastName: '',
+        username: '',
         email: '',
         phone: '',
         password: '',
@@ -370,7 +389,7 @@ export default {
   computed: {
     signupProgress() {
       let progress = 0;
-      const fields = ['firstName', 'lastName', 'email', 'phone', 'password'];
+      const fields = ['firstName', 'lastName', 'username', 'email', 'phone', 'password'];
       const filledFields = fields.filter(field => this.signupForm[field]).length;
       progress = (filledFields / fields.length) * 100;
       return Math.min(progress, 100);
@@ -493,6 +512,7 @@ export default {
         const response = await authAPI.register({
           first_name: this.signupForm.firstName.trim(),
           last_name: this.signupForm.lastName.trim(),
+          username: this.signupForm.username.trim(),
           email: this.signupForm.email.toLowerCase().trim(),
           phone: this.signupForm.phone,
           password: this.signupForm.password,
@@ -510,7 +530,7 @@ export default {
         const userSession = {
           id: customer._id || customer.id,
           email: customer.email,
-          username: customer.username,
+          username: customer.username || this.signupForm.username.trim(),
           fullName: responseFullName || `${derivedFirstName} ${derivedLastName}`.trim(),
           firstName: derivedFirstName,
           lastName: derivedLastName,
@@ -605,4 +625,3 @@ export default {
 </script>
 
 <style scoped src="./Auth.css"></style>
-

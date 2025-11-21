@@ -298,6 +298,20 @@ export default {
     window.addEventListener('hashchange', this.handleHashChange);
   },
   methods: {
+    resetCart() {
+      // Remove all cart items from app state
+      this.cartItems = [];
+
+      // Remove cart from localStorage
+      localStorage.removeItem('ramyeon_cart');
+
+      // Force re-render (Very important for UI badge update)
+      this.cartKey++;
+
+      // Optional: ensure UI refreshes
+      this.$nextTick(() => this.$forceUpdate());
+    },
+
     handleHashChange() {
       console.log("🔙 Back button detected. Hash:", window.location.hash);
       this.checkURLHash();   // Re-read URL and update currentPage
@@ -581,14 +595,21 @@ export default {
     },
 
     confirmSignOut() {
+      // Clear user session
       this.currentUser = null;
       localStorage.removeItem('ramyeon_user_session');
-      this.setCurrentPage('Home');
-      this.showSignOutModal = false;
 
-      // Show success notification
+      // Clear cart completely
+      this.resetCart();
+
+      // Close modal & redirect
+      this.showSignOutModal = false;
+      this.setCurrentPage('Home');
+
+      // Optional success popup
       this.showSignOutSuccess();
     },
+
 
     cancelSignOut() {
       this.showSignOutModal = false;

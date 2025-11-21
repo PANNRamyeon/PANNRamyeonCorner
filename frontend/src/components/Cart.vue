@@ -2107,6 +2107,10 @@ export default {
     try {
       console.log('🎁 Loading active promotions for per-item discounts...');
       await this.getActivePromotions();
+      this.activePromotions = this.activePromotions.filter(promo =>
+        promo.name !== 'PWD' &&
+        promo.name !== 'Senior Citizen'
+      );
       console.log('✅ Active promotions loaded:', this.activePromotions.length);
       // Try auto-applying the best promotion on load
       await this.autoApplyBestPromotion();

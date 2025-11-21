@@ -151,6 +151,7 @@
 
 <script>
 import VoucherModal from './VoucherModal.vue'
+import { useCartStore } from '@/stores/cartStores';
 
 export default {
   name: 'Profile',
@@ -206,6 +207,12 @@ export default {
   },
 
   methods: {
+    useVoucher(voucher) {
+      const cartStore = useCartStore();
+      cartStore.selectedVoucher = voucher;    
+
+      this.$router.push('/cart');            
+    },
     // -----------------------------
     // DARK MODE (Restored)
     // -----------------------------

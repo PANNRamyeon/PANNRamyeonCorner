@@ -786,66 +786,85 @@ export default {
 
     async autoApplyBestPromotion() {
       try {
-        // Do not override a manually applied promotion
+        // 🔥 1. PRIORITY: If user selected a voucher → use it and STOP
+        if (this.cartStore.selectedVoucher) {
+          const voucher = this.cartStore.selectedVoucher;
+
+          // Set voucher as the applied promotion
+          this.appliedPromotion = voucher;
+
+          // Compute discount from voucher
+          this.promotionDiscount = this.computePromotionDiscount(voucher);
+
+          return; // ⛔ STOP — do NOT compute automatic promotions
+        }
+
+        // 🔥 2. If a manual promo code was applied, DO NOT override it
         if (this.appliedPromotion) return;
+
+        // No active promotions? Exit.
         if (!this.activePromotions || this.activePromotions.length === 0) return;
         if (!this.cartItems || this.cartItems.length === 0) return;
+
+        // 🔥 3. FILTER OUT PWD & SENIOR PROMOS
+        const filteredPromotions = this.activePromotions.filter(promo =>
+          promo.name !== 'PWD' &&
+          promo.name !== 'Senior Citizen'
+        );
 
         let bestPromotion = null;
         let bestDiscount = 0;
 
-        for (const promo of this.activePromotions) {
-          if (promo.status !== 'active') continue;
+        // 🔥 4. Compute the best promotion from the filtered list
+        for (const promo of filteredPromotions) {
+          if (promo.status !== 'active') continue; // skip inactive promos
+
           const discount = this.computePromotionDiscount(promo);
+
           if (discount > bestDiscount) {
             bestDiscount = discount;
             bestPromotion = promo;
           }
         }
 
+        // 🔥 5. Apply the best promotion if it exists
         if (bestPromotion && bestDiscount > 0) {
           this.appliedPromotion = bestPromotion;
           this.promotionDiscount = bestDiscount;
         } else {
-          // No applicable promotion
           this.appliedPromotion = null;
           this.promotionDiscount = 0;
         }
+
       } catch (e) {
         console.error('Auto-apply promotion error:', e);
       }
     },
+
     
     async recalculateExistingPromotions() {
       try {
-        console.log('🔄 Recalculating existing promotions...');
-        
-        // Check if there's an applied promotion
-        if (this.appliedPromotion && this.cartItems && this.cartItems.length > 0) {
-          console.log('📊 Found applied promotion:', this.appliedPromotion.name);
-          console.log('📊 Old discount:', this.promotionDiscount);
-          
-          // Recalculate the discount based on current cart
-          const newDiscount = this.computePromotionDiscount(this.appliedPromotion);
-          
-          console.log('📊 New discount:', newDiscount);
-          
-          // Update the promotion discount
-          this.promotionDiscount = newDiscount;
-          
-          // If discount is now 0, remove the promotion
-          if (newDiscount === 0) {
-            console.log('⚠️ Promotion no longer applies, removing...');
-            this.appliedPromotion = null;
-            this.promotionDiscount = 0;
-          }
-          
-          console.log('✅ Promotion discount recalculated');
-        } else {
-          console.log('ℹ️ No applied promotion to recalculate');
+        if (!this.appliedPromotion || !this.cartItems.length) return;
+
+        // 🔥 BLOCK PWD & SENIOR IF THEY SOMEHOW EXIST
+        if (this.appliedPromotion.name === 'PWD' ||
+            this.appliedPromotion.name === 'Senior Citizen') 
+        {
+          this.appliedPromotion = null;
+          this.promotionDiscount = 0;
+          return;
+        }
+
+        const newDiscount = this.computePromotionDiscount(this.appliedPromotion);
+
+        this.promotionDiscount = newDiscount;
+
+        if (newDiscount === 0) {
+          this.appliedPromotion = null;
+          this.promotionDiscount = 0;
         }
       } catch (error) {
-        console.error('❌ Error recalculating promotions:', error);
+        console.error('Error recalculating promotions:', error);
       }
     },
     
@@ -914,21 +933,20 @@ export default {
     },
     
     getApplicablePromotionForItem(item) {
-      if (CART_DEBUG) console.log('🔍 Checking promotions for item:', item.name);
-      if (CART_DEBUG) console.log('📋 Active promotions count:', this.activePromotions.length);
-      
-      // Check if any active promotion applies to this item
-      for (const promotion of this.activePromotions) {
-        if (CART_DEBUG) console.log('🎁 Checking promotion:', promotion.name, 'Type:', promotion.type, 'Status:', promotion.status);
-        const isEligible = this.isItemEligibleForPromotion(item, promotion);
-        if (CART_DEBUG) console.log('✅ Is eligible for', promotion.name, ':', isEligible);
-        
-        if (isEligible) {
-          if (CART_DEBUG) console.log('🎯 Found applicable promotion:', promotion.name);
+      if (!this.activePromotions || this.activePromotions.length === 0) return null;
+
+      // 🔥 FILTER OUT PWD + SENIOR
+      const filteredPromotions = this.activePromotions.filter(promo =>
+        promo.name !== 'PWD' &&
+        promo.name !== 'Senior Citizen'
+      );
+
+      for (const promotion of filteredPromotions) {
+        if (this.isItemEligibleForPromotion(item, promotion)) {
           return promotion;
         }
       }
-      if (CART_DEBUG) console.log('❌ No applicable promotion found for', item.name);
+
       return null;
     },
     

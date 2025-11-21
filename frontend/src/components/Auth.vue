@@ -497,21 +497,22 @@ export default {
     async handleSignUp() {
       this.signupError = '';
       this.signupSuccess = '';
-      
+
       if (!this.signupForm.agreeToTerms) {
         this.signupError = 'Please agree to the Terms of Service';
         return;
       }
-      
+
       this.isLoading = true;
-      
+
       try {
-        // Ensure any existing session is cleared before creating a new account
+        // Clear existing session before registration
         await authAPI.logout();
 
+        const fullName = `${this.signupForm.firstName.trim()} ${this.signupForm.lastName.trim()}`.trim();
+
         const response = await authAPI.register({
-          first_name: this.signupForm.firstName.trim(),
-          last_name: this.signupForm.lastName.trim(),
+          full_name: fullName,
           username: this.signupForm.username.trim(),
           email: this.signupForm.email.toLowerCase().trim(),
           phone: this.signupForm.phone,
@@ -520,20 +521,14 @@ export default {
         });
 
         const customer = response.customer || response.user || {};
-        const responseFirstName = customer.first_name || customer.firstName;
-        const responseLastName = customer.last_name || customer.lastName;
-        const responseFullName = customer.full_name || customer.fullName || '';
-
-        const derivedFirstName = responseFirstName || responseFullName.split(' ')[0] || this.signupForm.firstName.trim();
-        const derivedLastName = responseLastName || responseFullName.split(' ').slice(1).join(' ') || this.signupForm.lastName.trim();
 
         const userSession = {
           id: customer._id || customer.id,
           email: customer.email,
           username: customer.username || this.signupForm.username.trim(),
-          fullName: responseFullName || `${derivedFirstName} ${derivedLastName}`.trim(),
-          firstName: derivedFirstName,
-          lastName: derivedLastName,
+          fullName: customer.full_name || fullName,
+          firstName: fullName.split(' ')[0],
+          lastName: fullName.split(' ').slice(1).join(' '),
           phone: customer.phone || '',
           points: customer.loyalty_points || 0,
           deliveryAddress: customer.delivery_address || {},
@@ -544,15 +539,20 @@ export default {
 
         localStorage.setItem('ramyeon_user_session', JSON.stringify(userSession));
 
-        this.signupSuccess = response.message || 'Account created successfully! Please verify your email.';
+        this.signupSuccess =
+          response.message || 'Account created successfully! Please verify your email.';
 
         setTimeout(() => {
           this.$emit('signUpSuccess', userSession);
         }, 1500);
-         
+
       } catch (error) {
         console.error('SignUp error:', error);
-        this.signupError = error.error || error.detail || error.message || 'An error occurred during registration. Please try again.';
+        this.signupError =
+          error.error ||
+          error.detail ||
+          error.message ||
+          'An error occurred during registration. Please try again.';
       } finally {
         this.isLoading = false;
       }

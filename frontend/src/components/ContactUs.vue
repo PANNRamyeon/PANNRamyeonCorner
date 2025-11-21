@@ -115,7 +115,7 @@
               </svg>
             </div>
             <h3>Phone Number</h3>
-            <p class="contact-detail">(123) 456-7890</p>
+            <p class="contact-detail">0946 102 0314</p>
             <p class="contact-hours">
               <strong>Assistance hours:</strong><br />
               Monday - Friday: 6 AM to 8 PM EST

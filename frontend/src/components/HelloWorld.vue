@@ -205,7 +205,7 @@ export default {
         {
           name: 'Fish Cake',
           price: 55,
-          image: 'https://images.unsplash.com/photo-1563379091339-03246963d96c?auto=format&fit=crop&w=400&q=80'
+          image: 'https://recipe1.ezmember.co.kr/cache/recipe/2022/05/05/8b3426862e0d9d60035828927d3f0c7d1.jpg'
         },
         {
           name: 'Ice Talk',

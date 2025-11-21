@@ -25,7 +25,7 @@
    <main v-if="!isLoading && !error" class="main-content">
       <!-- Flash Sale Section -->
        <section class="flash-sale-section">
-        <div class="flash-sale-card" :class="{ 'disabled': !isLoggedIn }" @click="handlePromotionClick('FLASH30', 'Flash Sale')">
+       <!-- <div class="flash-sale-card" :class="{ 'disabled': !isLoggedIn }" @click="handlePromotionClick('FLASH30', 'Flash Sale')">
           <div class="flash-sale-content">
             <div class="flash-sale-image">
               <img :src="ramyeonHero" alt="Ramyeon Bowl" />
@@ -64,7 +64,7 @@
               </div>
             </div>
           </div>
-        </div>
+        </div>-->
       </section>
 
       <!-- Top Food Items -->
@@ -118,7 +118,7 @@
 
       <!-- Bottom Food Items -->
       <section class="food-items-section">
-        <div class="food-grid">
+       <!-- <div class="food-grid">
           <div
             v-for="(item, index) in bottomItems"
             :key="index"
@@ -151,14 +151,14 @@
               </button>
             </div>
           </div>
-        </div>
+        </div> -->
       </section>
 
       <!-- Special Offers -->
       <section class="special-offers">
-        <div class="offers-grid">
+      <div class="offers-grid">
           <!-- Summer Offer -->
-          <div class="summer-offer-card" :class="{ 'disabled': !isLoggedIn }" @click="handlePromotionClick('SUMMER40', 'Summer Special')">
+         <!--  <div class="summer-offer-card" :class="{ 'disabled': !isLoggedIn }" @click="handlePromotionClick('SUMMER40', 'Summer Special')">
             <div class="summer-offer-content">
               <div class="summer-offer-text">
                 <h3>Special Summer Offer</h3>
@@ -187,11 +187,11 @@
                   </svg>
                 </span>
               </span>
-            </button>
+            </button>-->
           </div>
 
           <!-- Vouchers -->
-          <div class="vouchers-section">
+          <!-- <div class="vouchers-section">
             <div class="voucher-card" :class="{ 'disabled': !isLoggedIn }" @click="handlePromotionClick('STORE10', 'Store Voucher')">
               <div class="voucher-content">
                 <div class="voucher-icon">🎁</div>
@@ -245,7 +245,7 @@
               </button>
             </div>
           </div>
-        </div>
+        </div>-->
       </section>
     </main>
 

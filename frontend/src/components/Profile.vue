@@ -306,6 +306,7 @@ export default {
     handleRemoveVoucher(voucher) {
       this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id)
       this.showMessage('Voucher removed!', 'info')
+      this.closeVoucherModal()
     },
 
     showAllVouchers() {

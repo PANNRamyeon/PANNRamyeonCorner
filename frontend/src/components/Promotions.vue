@@ -382,6 +382,15 @@ export default {
     await this.fetchActivePromotions();
   },
   methods: {
+    copyCode(code) {
+      try {
+        navigator.clipboard.writeText(code);
+        this.showSuccessMessage('Promo code copied to clipboard!');
+      } catch (err) {
+        console.error('Failed to copy code:', err);
+        this.showErrorMessage('Failed to copy code.');
+      }
+    },
     async fetchActivePromotions() {
       try {
         console.log('🎯 Fetching active promotions using composable...')

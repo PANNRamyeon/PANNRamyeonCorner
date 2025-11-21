@@ -208,12 +208,26 @@ export default {
   methods: {
     loadPaymentHistory() {
       try {
-        const savedPayments = localStorage.getItem('ramyeon_payment_history');
-        if (savedPayments) {
-          this.payments = JSON.parse(savedPayments);
+        // Get the current logged-in user session
+        const userSession = JSON.parse(localStorage.getItem('ramyeon_user_session') || '{}');
+
+        // If no user session found → no payment history
+        if (!userSession.id) {
+          this.payments = [];
+          return;
         }
+
+        // Use per-user payment history key
+        const key = `ramyeon_payment_history_${userSession.id}`;
+
+        // Load payment history for ONLY this user
+        const savedPayments = localStorage.getItem(key);
+
+        this.payments = savedPayments ? JSON.parse(savedPayments) : [];
+
       } catch (error) {
         console.error('Error loading payment history:', error);
+        this.payments = [];
       }
     },
     formatDate(dateString) {

@@ -110,7 +110,7 @@
         
         <!-- Right side promotional content for login -->
         <div class="promo-content">
-          <div class="promo-badge">🔥 HOT DEAL</div>
+         <!--  <div class="promo-badge">🔥 HOT DEAL</div> -->
           <div class="promo-image">
             <img src="../assets/food/ramyeon-hero.jpg" alt="Delicious Ramyeon" class="ramyeon-image" />
             <div class="image-overlay"></div>

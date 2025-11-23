@@ -151,7 +151,6 @@
 
 <script>
 import VoucherModal from './VoucherModal.vue'
-import { useCartStore } from '@/stores/cartStores';
 
 export default {
   name: 'Profile',
@@ -169,6 +168,12 @@ export default {
         loyalty_points: 0,
         vouchers: []
       },
+
+      voucherBlacklist: [
+        "PWD",
+        "Senior Citizen"
+      ],
+
       showVoucherModal: false,
       selectedVoucher: {},
       showAllVouchersFlag: false,
@@ -197,8 +202,7 @@ export default {
   },
 
   watch: {
-    'user.loyalty_points'(newPoints, oldPoints) {
-      console.log('🔄 Profile loyalty points changed:', { old: oldPoints, new: newPoints })
+    'user.loyalty_points'() {
       this.$forceUpdate()
     },
     '$root.isDarkMode'(newVal) {
@@ -207,14 +211,17 @@ export default {
   },
 
   methods: {
-    useVoucher(voucher) {
-      const cartStore = useCartStore();
-      cartStore.selectedVoucher = voucher;    
 
-      this.$router.push('/cart');            
+    // =====================================================
+    // VOUCHER USE LOGIC — LOCALSTORAGE HANDOFF
+    // =====================================================
+    useVoucher(voucher) {
+      localStorage.setItem('ramyeon_selected_voucher', JSON.stringify(voucher))
+      this.$router.push('/cart')
     },
+
     // -----------------------------
-    // DARK MODE (Restored)
+    // DARK MODE LOGIC
     // -----------------------------
     loadDarkModePreference() {
       const darkMode = localStorage.getItem('ramyeon_dark_mode')
@@ -243,20 +250,23 @@ export default {
       }
     },
 
+    // =====================================================
+    // FILTER OUT BLACKLISTED VOUCHERS
+    // =====================================================
     loadSavedVouchers() {
       const savedVouchers = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]')
-      this.user.vouchers = savedVouchers
+
+      const filtered = savedVouchers.filter(voucher =>
+        !this.voucherBlacklist.includes(voucher.title)
+      )
+
+      this.user.vouchers = filtered
     },
 
     async fetchCurrentUser() {
       try {
-        console.log('🔍 Fetching profile...')
-
         const token = localStorage.getItem('access_token')
-        if (!token) {
-          console.log('⚠️ No token - guest mode')
-          return
-        }
+        if (!token) return
 
         const { authAPI } = await import('../services/api.js')
         const response = await authAPI.getProfile()
@@ -274,9 +284,15 @@ export default {
           loyalty_points: user.loyalty_points || 0
         }
 
+        if (user.vouchers) {
+          this.user.vouchers = user.vouchers.filter(v =>
+            !this.voucherBlacklist.includes(v.title)
+          )
+        }
+
       } catch (e) {
-        console.error('❌ Profile fetch error:', e)
-        this.user.loyalty_points = 50 // fallback
+        console.error(e)
+        this.user.loyalty_points = 50
       }
     },
 
@@ -294,8 +310,8 @@ export default {
     },
 
     handleUseVoucher(voucher) {
-      console.log('Using voucher:', voucher)
-      this.showMessage('Voucher applied successfully!', 'success')
+      this.showSuccessMessage("Voucher applied successfully!")
+
       this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id)
 
       const saved = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]')
@@ -306,13 +322,13 @@ export default {
     },
 
     handleSaveVoucher() {
-      this.showMessage('Voucher saved for later!', 'info')
+      this.showSuccessMessage("Voucher saved for later!")
       this.loadSavedVouchers()
     },
 
     handleRemoveVoucher(voucher) {
       this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id)
-      this.showMessage('Voucher removed!', 'info')
+      this.showSuccessMessage("Voucher removed!")
       this.closeVoucherModal()
     },
 
@@ -321,7 +337,79 @@ export default {
     },
 
     // -----------------------------
-    // SMALL UTILS
+    // FUTURISTIC NOTIFICATION SYSTEM
+    // (Copied from Promotions.vue)
+    // -----------------------------
+    showSuccessMessage(message) {
+      const notification = document.createElement('div')
+      notification.innerHTML = `
+        <div style="
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: linear-gradient(135deg, #28a745, #20c997);
+          color: white;
+          padding: 15px 25px;
+          border-radius: 12px;
+          box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+          z-index: 9999;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 600;
+          animation: slideInRight 0.3s ease-out;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        ">
+          <span style="font-size: 1.2rem;">✅</span>
+          ${message}
+        </div>
+      `
+      document.body.appendChild(notification)
+
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.firstElementChild.style.animation = 'slideInRight 0.3s ease-in reverse'
+          setTimeout(() => notification.remove(), 300)
+        }
+      }, 3000)
+    },
+
+    showErrorMessage(message) {
+      const notification = document.createElement('div')
+      notification.innerHTML = `
+        <div style="
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: linear-gradient(135deg, #dc3545, #c82333);
+          color: white;
+          padding: 15px 25px;
+          border-radius: 12px;
+          box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+          z-index: 9999;
+          font-family: 'Poppins', sans-serif;
+          font-weight: 600;
+          animation: slideInRight 0.3s ease-out;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        ">
+          <span style="font-size: 1.2rem;">❌</span>
+          ${message}
+        </div>
+      `
+      document.body.appendChild(notification)
+
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.firstElementChild.style.animation = 'slideInRight 0.3s ease-in reverse'
+          setTimeout(() => notification.remove(), 300)
+        }
+      }, 3000)
+    },
+
+    // -----------------------------
+    // ICON HELPER
     // -----------------------------
     getVoucherIcon(title) {
       const icons = {
@@ -334,31 +422,10 @@ export default {
         default: '🎫'
       }
       return icons[title] || icons.default
-    },
-
-    showMessage(text, type) {
-      const msg = document.createElement('div')
-      msg.className = `message ${type}`
-      msg.textContent = text
-      msg.style.position = 'fixed'
-      msg.style.top = '20px'
-      msg.style.right = '20px'
-      msg.style.padding = '15px 20px'
-      msg.style.zIndex = '9999'
-      msg.style.borderRadius = '8px'
-      msg.style.fontWeight = '600'
-
-      document.body.appendChild(msg)
-
-      setTimeout(() => {
-        if (msg.parentNode) msg.remove()
-      }, 3000)
     }
   }
 }
 </script>
-
-
 
 <style src="./Profile.css" scoped></style>
 

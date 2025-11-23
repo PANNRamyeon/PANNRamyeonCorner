@@ -240,6 +240,7 @@ export default {
       this.pickupTime = '';
     },
     orderNow() {
+      // Delivery / Pickup validation
       if (this.deliveryType === 'Delivery' && !this.address) {
         alert('Please enter your address');
         return;
@@ -249,17 +250,18 @@ export default {
         return;
       }
 
-      const message = this.deliveryType === 'Delivery' 
-        ? `Order placed for delivery to ${this.address}`
-        : `Order placed for pickup at ${this.pickupTime}`;
-        
-      alert(message);
-      this.address = '';
-      this.pickupTime = '';
+      // Check login state from App.vue (root component)
+      const isLoggedIn = this.$root.isLoggedIn;
 
-      // ✅ Tell parent we want to go to login, but from an order action
-      this.$emit('setCurrentPage', 'Login', { from: 'OrderNow' });
+      if (isLoggedIn) {
+        // ✅ Already logged in → go straight to Menu
+        this.$emit('setCurrentPage', 'Menu');
+      } else {
+        // ❗ Not logged in → go to Login, but remember the intent
+        this.$emit('setCurrentPage', 'Login', { from: 'OrderNow' });
+      }
     }
+
   }
 }
 </script>

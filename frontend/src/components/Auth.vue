@@ -467,13 +467,18 @@ export default {
       this.loginError = '';
       this.loginSuccess = '';
       this.isLoading = true;
-      
+
       try {
         const response = await authAPI.login(
           this.loginForm.email.toLowerCase().trim(),
           this.loginForm.password
         );
-        
+
+        // ⭐ SAVE JWT TOKEN
+        if (response.token) {
+          localStorage.setItem('access_token', response.token);
+        }
+
         const customer = response.customer || response.user || {};
         const userSession = {
           id: customer._id || customer.id,
@@ -487,19 +492,19 @@ export default {
           deliveryAddress: customer.delivery_address || {},
           loginTime: new Date().toISOString()
         };
-        
+
         localStorage.setItem('ramyeon_user_session', JSON.stringify(userSession));
-        
+
         if (this.loginForm.rememberMe) {
           localStorage.setItem('ramyeon_remember_user', this.loginForm.email);
         }
-        
+
         this.loginSuccess = response.message || 'Login successful! Welcome back!';
-        
+
         setTimeout(() => {
           this.$emit('loginSuccess', userSession);
         }, 1000);
-        
+
       } catch (error) {
         console.error('Login error:', error);
         this.loginError =
@@ -536,6 +541,12 @@ export default {
           password: this.signupForm.password,
           delivery_address: {},
         });
+
+        // ⭐ SAVE JWT TOKEN
+        if (response.token) {
+          localStorage.setItem('access_token', response.token);
+        }
+
 
         const customer = response.customer || response.user || {};
 

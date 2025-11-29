@@ -1560,57 +1560,44 @@ export default {
     
     async loadUserProfile() {
       try {
-        console.log('🔍 DEBUG: Attempting to load user profile...');
-        
-        const token = localStorage.getItem('access_token');
-        console.log('🔍 DEBUG: JWT Token exists:', !!token);
-        
-        if (!token) {
-          throw new Error('No JWT token found - user not logged in');
-        }
-        
-        console.log('🔍 DEBUG: Calling authAPI.getProfile()...');
+        this.isUserLoading = true;
+
         const response = await authAPI.getProfile();
-        console.log('🔍 DEBUG: API Response:', response);
-        
-        if (response && response.customer) {
-          this.userProfile = {
-            id: response.customer.id || response.customer.customer_id,
-            email: response.customer.email,
-            full_name: response.customer.full_name,
-            loyalty_points: response.customer.loyalty_points || 0
-          };
-          
-          if (this.setLoyaltyBalance) {
-            this.setLoyaltyBalance(this.userProfile.loyalty_points);
-          }
-          
-          console.log('✅ Real customer profile loaded:', {
-            email: this.userProfile.email,
-            loyalty_points: this.userProfile.loyalty_points
-          });
-        } else {
-          console.error('❌ No customer data in response:', response);
-          throw new Error('No customer data received');
+
+        // Accept ANY backend response format:
+        // - { customer: {...} }
+        // - { data: {...} }
+        // - { id: "...", email: "...", ... }
+        const customer = 
+          response.customer ||
+          response.data ||
+          response;
+
+        if (!customer) {
+          console.warn("⚠ No customer data returned from getProfile()");
+          return;
         }
-      } catch (error) {
-        console.error('❌ Failed to load real customer profile:', error);
-        
-        if (error.response) {
-          console.error('❌ HTTP Status:', error.response.status);
-          console.error('❌ Response Data:', error.response.data);
-          console.error('❌ Response Headers:', error.response.headers);
-        } else if (error.data) {
-          console.error('❌ Error Data:', error.data);
-        }
-        
-        console.error('❌ Error Message:', error.message || 'No error message available');
-        console.error('❌ Full Error Object:', JSON.stringify(error, null, 2));
-        
-        console.log('💡 To fix: Make sure you are logged in and backend is running');
-        console.log('💡 Check backend logs for detailed error information');
+
+        // Build final userProfile object
+        this.userProfile = {
+          id: customer.id || customer.customer_id || null,
+          email: customer.email || '',
+          full_name: customer.full_name || customer.name || '',
+          loyalty_points: customer.loyalty_points || 0,
+          phone: customer.phone || '',
+          deliveryAddress: customer.delivery_address || {}
+        };
+
+        console.log("✅ Loaded user profile:", this.userProfile);
+
+      } catch (err) {
+        console.error("❌ Error loading user profile:", err);
+        this.userProfile = null;
+      } finally {
+        this.isUserLoading = false;
       }
     }
+
 
     // Add remaining helper methods...
   },
@@ -1640,7 +1627,8 @@ export default {
       }
     }
     
-    this.loadUserProfile();
+    await this.loadUserProfile();
+
     
     const savedCart = localStorage.getItem('ramyeon_cart');
     if (CART_DEBUG) console.log('[Cart] Loading cart from localStorage:', savedCart ? 'Found' : 'Empty');

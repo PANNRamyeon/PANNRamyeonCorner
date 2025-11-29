@@ -346,6 +346,15 @@ import { authAPI, apiBaseUrl } from '../services/api';
 export default {
   name: 'Auth',
   emits: ['loginSuccess', 'signUpSuccess', 'backToHome'],
+
+  // ✅ NEW — Add mode prop
+  props: {
+    mode: {
+      type: String,
+      default: 'Login'   // Can be: Login or SignUp
+    }
+  },
+
   data() {
     return {
       isSignUpMode: false,
@@ -378,6 +387,7 @@ export default {
       logoSrc: require('../assets/Nav Bar/Logo.png')
     }
   },
+
   computed: {
     signupProgress() {
       let progress = 0;
@@ -423,6 +433,18 @@ export default {
       return '#059669';
     }
   },
+
+  // ✅ NEW — Watch mode changes and switch form instantly
+  watch: {
+    mode(newValue) {
+      if (newValue === 'SignUp') {
+        this.isSignUpMode = true;
+      } else {
+        this.isSignUpMode = false;
+      }
+    }
+  },
+
   methods: {
     switchToSignUp() {
       this.isSignUpMode = true;
@@ -480,7 +502,11 @@ export default {
         
       } catch (error) {
         console.error('Login error:', error);
-        this.loginError = error.error || error.detail || error.message || 'Invalid email or password. Please try again.';
+        this.loginError =
+          error.error ||
+          error.detail ||
+          error.message ||
+          'Invalid email or password. Please try again.';
       } finally {
         this.isLoading = false;
       }
@@ -498,7 +524,6 @@ export default {
       this.isLoading = true;
 
       try {
-        // Clear existing session before registration
         await authAPI.logout();
 
         const fullName = `${this.signupForm.firstName.trim()} ${this.signupForm.lastName.trim()}`.trim();
@@ -567,18 +592,13 @@ export default {
     },
 
     startSocialAuth(provider, mode) {
-      if (this.isLoading) {
-        return;
-      }
+      if (this.isLoading) return;
 
       const supportedProviders = ['google', 'facebook'];
       if (!supportedProviders.includes(provider)) {
         const message = `${provider} login is not supported yet.`;
-        if (mode === 'signup') {
-          this.signupError = message;
-        } else {
-          this.loginError = message;
-        }
+        if (mode === 'signup') this.signupError = message;
+        else this.loginError = message;
         return;
       }
 
@@ -587,33 +607,36 @@ export default {
         const redirectUri = `${window.location.origin}/#/oauth`;
         const baseUrl = (apiBaseUrl || '').replace(/\/$/, '');
 
-        if (!baseUrl) {
-          throw new Error('Missing API base URL configuration.');
-        }
+        if (!baseUrl) throw new Error('Missing API base URL configuration.');
 
-        const authorizeUrl = `${baseUrl}/auth/oauth/${provider}/authorize/?redirect_uri=${encodeURIComponent(redirectUri)}`;
+        const authorizeUrl =
+          `${baseUrl}/auth/oauth/${provider}/authorize/?redirect_uri=${encodeURIComponent(redirectUri)}`;
+        
         window.location.href = authorizeUrl;
       } catch (error) {
         console.error('OAuth redirect error:', error);
         const message = 'Failed to start social sign-in. Please try again later.';
-        if (mode === 'signup') {
-          this.signupError = message;
-        } else {
-          this.loginError = message;
-        }
+        if (mode === 'signup') this.signupError = message;
+        else this.loginError = message;
         this.isLoading = false;
       }
     }
   },
-  
+
   mounted() {
     const rememberedEmail = localStorage.getItem('ramyeon_remember_user');
     if (rememberedEmail) {
       this.loginForm.email = rememberedEmail;
       this.loginForm.rememberMe = true;
     }
+
+    // ✅ NEW — Auto switch when Auth page is opened with SignUp mode
+    if (this.mode === 'SignUp') {
+      this.isSignUpMode = true;
+    }
   }
 }
 </script>
+
 
 <style scoped src="./Auth.css"></style>

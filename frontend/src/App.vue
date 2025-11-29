@@ -3,11 +3,11 @@
     <!-- Authentication Pages (Full Screen with Sliding Animation) -->
     <template v-if="isAuthPage">
       <Auth
+        :mode="currentPage"                      
         @loginSuccess="handleAuthSuccess"
         @signUpSuccess="handleAuthSuccess"
         @backToHome="setCurrentPage('Home')"
-        @switchToSignUp="setCurrentPage('SignUp')" 
-      />
+        @switchToSignUp="setCurrentPage('SignUp')" />
     </template>
 
     <!-- Main App Layout -->
@@ -130,73 +130,17 @@
                 </div>
                 <h3>Sign Up and get exclusive deals!</h3>
               </div>
-              <!--<div class="newsletter-form" :class="{ 'success': subscriptionSuccess, 'error': subscriptionError }">
-                <div class="input-container">
-                  <input 
-                    type="email" 
-                    placeholder="youremail@gmail.com" 
-                    v-model="newsletterEmail"
-                    class="newsletter-input"
-                    :class="{ 'error': subscriptionError, 'success': subscriptionSuccess }"
-                    @keyup.enter="subscribe"
-                  />
-                  <div class="input-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </div>
-                </div>
-                <button class="subscribe-btn" @click="subscribe" :disabled="isSubscribing">
-                  <span v-if="!isSubscribing">Subscribe</span>
-                  <span v-else class="loading-text">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2V6M12 18V22M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07M2 12H6M18 12H22M4.93 19.07L7.76 16.24M16.24 7.76L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </span>
-                  <svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                </button>
-              </div>
-              <div class="form-feedback">
-                <p v-if="subscriptionError" class="error-message">{{ subscriptionError }}</p>
-                <p v-if="subscriptionSuccess" class="success-message">{{ subscriptionSuccess }}</p>
-              </div>
-              <p class="newsletter-disclaimer">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                  <circle cx="12" cy="16" r="1" fill="currentColor"/>
-                  <path d="M7 11V7A5 5 0 0 1 17 7V11" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                we won't spam, read our <a href="#" class="email-policy-link">email policy</a>
-              </p>-->
+              <!-- newsletter form commented out -->
             </div>
             
             <!-- Legal Pages -->
             <div class="footer-links">
-            <!--  <div class="footer-column">
-                <h4>Legal Pages</h4>
-                <ul>
-                  <li><a href="#">Terms and conditions</a></li>
-                  <li><a href="#">Privacy</a></li>
-                  <li><a href="#">Cookies</a></li>
-            
-                </ul>
-              </div>-->
+              <!-- commented content -->
             </div>
 
             <!-- Important Links -->
             <div class="footer-links">
-             <!-- <div class="footer-column">
-                <h4>Important Links</h4>
-                <ul>
-                  <li><a href="#">Get help</a></li>
-                  <li><a href="#">Add your restaurant</a></li>
-                  <li><a href="#">Sign up to deliver</a></li>
-                  <li><a href="#">Create a business account</a></li>
-                </ul>
-              </div>-->
+              <!-- commented content -->
             </div>
         </div>
       </div>
@@ -206,15 +150,6 @@
         <a href="https://www.facebook.com/ramyeoncornerbislig" class="social-link" aria-label="Facebook" target="_blank" rel="noopener noreferrer">
           <img src="./assets/Nav Bar/fb.png" alt="Facebook" />
         </a>
-        <!--<a href="#" class="social-link" aria-label="Twitter">
-          <img src="./assets/Nav Bar/twt.png" alt="Twitter" />
-        </a>
-        <a href="#" class="social-link" aria-label="Instagram">
-          <img src="./assets/Nav Bar/ig.png" alt="Instagram" />
-        </a>
-        <a href="#" class="social-link" aria-label="Github">
-          <img src="./assets/Nav Bar/git.png" alt="Github" />
-        </a>-->
       </div>
 
       <!-- Copyright Section -->
@@ -227,6 +162,7 @@
     </template>
   </div>
 </template>
+
 
 <script>
 import HelloWorld from './components/HelloWorld.vue'

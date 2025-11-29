@@ -15,7 +15,7 @@
           </p>
           <div class="social-icons-hero">
             <a href="https://www.facebook.com/ramyeoncornerbislig" class="social-link" aria-label="Facebook" target="_blank" rel="noopener noreferrer">
-                <img src="../assets/Nav Bar/fb.png" alt="Facebook" />
+                <img src="../assets/Nav Bar/fb.png" alt="Facebook" style="filter: brightness(0) invert(0);"/>
               </a>
               <!--<a href="#" class="social-link" aria-label="Twitter">
                 <img src="./assets/Nav Bar/twt.png" alt="Twitter" />
@@ -129,8 +129,8 @@
         <div class="newsletter-content">
           <div class="newsletter-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </div>
           <h2 class="newsletter-title">Stay Updated with Ramyeon Corner</h2>

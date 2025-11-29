@@ -55,8 +55,18 @@
             <h3>{{ product.product_name || product.name }}</h3>
             <p>{{ product.description || 'No description available' }}</p>
             <div class="price">₱{{ (product.selling_price || product.price).toFixed(2) }}</div>
+            <div v-if="getProductStock(product) !== null && getProductStock(product) <= 0" class="out-of-stock-badge">Out of Stock</div>
+            <div v-else-if="getProductStock(product) !== null && getProductStock(product) > 0 && getProductStock(product) <= 10" class="low-stock-badge">Low Stock ({{ getProductStock(product) }} left)</div>
           </div>
-          <button class="add-btn" @click="addToCart(product)">+</button>
+          <button 
+            class="add-btn" 
+            :class="{ 'disabled': getProductStock(product) !== null && getProductStock(product) <= 0 }"
+            @click="addToCart(product)"
+            :disabled="getProductStock(product) !== null && getProductStock(product) <= 0"
+            :title="(getProductStock(product) !== null && getProductStock(product) <= 0) ? 'This item is out of stock' : 'Add to cart'"
+          >
+            +
+          </button>
         </div>
       </div>
 
@@ -121,10 +131,16 @@ export default {
     };
   },
   computed: {
-    // Ensure products are reactive from composable
+    // Show all products (don't filter by stock)
+    // Stock validation happens at add-to-cart time
     displayProducts() {
       console.log('🔄 Display products computed:', this.products?.length || 0);
-      return this.products || [];
+      const allProducts = this.products || [];
+      
+      // Show all products - don't filter by stock
+      // Products with stock <= 0 will have disabled add buttons
+      console.log(`📦 Showing ${allProducts.length} products`);
+      return allProducts;
     }
   },
   async mounted() {
@@ -214,7 +230,34 @@ export default {
       }
     },
 
+    getProductStock(product) {
+      // Check stock from various possible field names
+      // Backend uses 'stock' field, but check others for compatibility
+      // Return null if stock field is completely missing (not just 0)
+      if (product.stock !== undefined && product.stock !== null) {
+        return typeof product.stock === 'number' ? product.stock : parseInt(product.stock) || 0;
+      }
+      if (product.stock_quantity !== undefined && product.stock_quantity !== null) {
+        return typeof product.stock_quantity === 'number' ? product.stock_quantity : parseInt(product.stock_quantity) || 0;
+      }
+      if (product.quantity !== undefined && product.quantity !== null) {
+        return typeof product.quantity === 'number' ? product.quantity : parseInt(product.quantity) || 0;
+      }
+      
+      // Return null if stock field is missing (will be treated as available)
+      return null;
+    },
+    
     addToCart(product) {
+      // Check if product is in stock before adding
+      const stock = this.getProductStock(product);
+      
+      // Only block if stock is explicitly 0 or negative (not null/undefined)
+      if (stock !== null && stock !== undefined && stock <= 0) {
+        alert('This item is currently out of stock.');
+        return;
+      }
+      
       // Normalize product data for cart
       const cartProduct = {
         id: product.product_id || product._id || product.id,
@@ -225,7 +268,7 @@ export default {
         image: product.image_url || product.image,
         category: product.category_name || product.category,
         subcategory: product.subcategory_name || product.subcategory,
-        stock: product.stock_quantity || product.stock || 0
+        stock: stock
       };
       
       this.onAddToCart(cartProduct);

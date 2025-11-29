@@ -301,7 +301,7 @@ export const ordersAPI = {
       const items = Array.isArray(orderData?.items) ? orderData.items : [];
 
       const payload = {
-        customer_id: orderData?.user?.id,
+        customer_id: orderData?.customer_id || orderData?.user?.id,
         items: items.map((item) => ({
           product_id: item.product_id || item.id || item.productId,
           quantity: item.quantity || 1,
@@ -310,21 +310,29 @@ export const ordersAPI = {
         })),
         delivery_address: orderData?.delivery_address || {},
         delivery_type: orderData?.delivery_type || 'delivery',
-        payment_method: (orderData?.payment_method || 'cod').toLowerCase(),
-        points_to_redeem: orderData?.loyalty_points || 0,
-        notes: orderData?.special_instructions || '',
+        payment_method: (orderData?.payment_method || 'cash').toLowerCase(),
+        points_to_redeem: orderData?.points_to_redeem || orderData?.loyalty_points || 0,
+        notes: orderData?.notes || orderData?.special_instructions || '',
+        special_instructions: orderData?.special_instructions || orderData?.notes || '',
       };
 
-      const response = await apiClient.post('/online/orders/create/', payload);
-      return response.data;
+      const response = await apiClient.post('/online-orders/', payload);
+      
+      // Backend returns { success: true, data: {...} } or { success: false, error: "..." }
+      if (response.data && response.data.success) {
+        return { success: true, data: response.data.data || response.data };
+      } else {
+        return { 
+          success: false, 
+          error: response.data?.error || response.data?.message || 'Failed to create order' 
+        };
+      }
 
     } catch (error) {
       const data = error.response?.data;
       const msg = data?.message || data?.error || error.message || 'Failed to create order';
-
-      const err = new Error(msg);
-      err.data = data;
-      throw err;
+      
+      return { success: false, error: msg };
     }
   },
 

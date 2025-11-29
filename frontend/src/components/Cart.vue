@@ -12,7 +12,12 @@
         <!-- Cart Items -->
         <div class="cart-items">
           <div class="cart-item" v-for="item in cartItems" :key="item.id">
-            <img :src="item.image" :alt="item.name" class="item-image" />
+            <img
+              :src="item.image || item.image_url || placeholderImage"
+              :alt="item.name"
+              class="item-image"
+              @error="handleCartImageError"
+            />
             <div class="item-details">
               <h3>{{ item.name }}</h3>
               <p class="item-description">{{ item.description }}</p>
@@ -252,13 +257,6 @@
               </div>
             </label>
             <label class="payment-option">
-              <input type="radio" v-model="paymentMethod" value="paymaya" />
-              <div class="payment-content">
-                <div class="payment-icon">🏦</div>
-                <span>PayMaya</span>
-              </div>
-            </label>
-            <label class="payment-option">
               <input type="radio" v-model="paymentMethod" value="grabpay" />
               <div class="payment-content">
                 <div class="payment-icon">🎯</div>
@@ -414,6 +412,7 @@ export default {
         cvc: '',
         name: ''
       },
+      placeholderImage: require('../assets/Home/BigRamen.png'),
       userProfile: null,
       showOrderConfirmation: false,
       confirmedOrder: {},
@@ -426,7 +425,9 @@ export default {
       pointsToRedeem: '',
       pointsDiscount: 0,
       maxPointsToRedeem: 80,
-      pointsApplied: false
+      pointsApplied: false,
+      pendingOrder: null,
+      pendingOrderKey: 'ramyeon_pending_order'
     }
   },
   computed: {
@@ -485,6 +486,49 @@ export default {
         await this.removeFromCart(item.product_id || item.id);
         await this.recalculateExistingPromotions();
       }
+    },
+
+    savePendingOrder(orderId, finalTotal) {
+      try {
+        const payload = {
+          orderId,
+          total: Number(finalTotal || this.finalTotal).toFixed(2),
+          paymentMethod: this.paymentMethod,
+          deliveryType: this.deliveryType,
+          pointsEarned: this.pointsDiscount > 0 ? 0 : (this.confirmedOrder?.pointsEarned || 0),
+          pointsUsed: this.useLoyaltyPoints ? (parseInt(this.pointsToRedeem) || 0) : 0,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(this.pendingOrderKey, JSON.stringify(payload));
+        this.pendingOrder = payload;
+        console.log('📝 Pending order saved:', payload);
+      } catch (error) {
+        console.error('❌ Failed to save pending order:', error);
+      }
+    },
+
+    loadPendingOrder(orderId = null) {
+      try {
+        const raw = localStorage.getItem(this.pendingOrderKey);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (orderId && parsed.orderId !== orderId) {
+          return null;
+        }
+        return parsed;
+      } catch (error) {
+        console.error('❌ Failed to load pending order:', error);
+        return null;
+      }
+    },
+
+    clearPendingOrder() {
+      localStorage.removeItem(this.pendingOrderKey);
+      this.pendingOrder = null;
+    },
+
+    handleCartImageError(event) {
+      event.target.src = this.placeholderImage;
     },
     
     // Loyalty Points Methods
@@ -1189,10 +1233,185 @@ export default {
       });
     },
 
-    // Payment and checkout methods remain the same...
+    // Payment and checkout methods
     async proceedToCheckout() {
-      // Your existing proceedToCheckout logic
-      // (Keep all the code as-is from your original file)
+      if (!this.canCheckout) {
+        console.warn('⚠️ Cannot checkout - validation failed');
+        return;
+      }
+
+      if (this.isProcessing) {
+        console.warn('⚠️ Already processing order');
+        return;
+      }
+
+      try {
+        this.isProcessing = true;
+        console.log('🛒 Starting checkout process...');
+
+        // Validate user profile
+        if (!this.userProfile || !this.userProfile.id) {
+          throw new Error('Please log in to place an order');
+        }
+
+        // Prepare order items
+        const orderItems = this.cartItems.map(item => ({
+          product_id: item.product_id || item.id,
+          quantity: item.quantity || 1,
+          price: this.getItemDiscountedPrice(item),
+          product_name: item.name || item.product_name,
+          original_price: item.price
+        }));
+
+        // Calculate totals
+        const subtotal = this.subtotal;
+        const deliveryFee = this.deliveryType === 'delivery' ? this.deliveryFee : 0;
+        const serviceFee = this.serviceFee;
+        const totalDiscount = (this.pointsDiscount || 0) + (this.promotionDiscount || 0);
+        const finalTotal = this.finalTotal;
+
+        // Prepare order data (format expected by composable and backend)
+        const orderData = {
+          // For ordersAPI.create which expects user.id
+          user: {
+            id: this.userProfile.id,
+            email: this.userProfile.email,
+            full_name: this.userProfile.full_name
+          },
+          // Direct customer_id for backend
+          customer_id: this.userProfile.id,
+          items: orderItems,
+          delivery_address: this.deliveryType === 'delivery' ? {
+            address: this.deliveryAddress,
+            type: 'delivery'
+          } : {},
+          delivery_type: this.deliveryType,
+          payment_method: this.paymentMethod,
+          subtotal: subtotal,
+          delivery_fee: deliveryFee,
+          service_fee: serviceFee,
+          discount: totalDiscount,
+          total_amount: finalTotal,
+          points_to_redeem: this.useLoyaltyPoints ? parseInt(this.pointsToRedeem) || 0 : 0,
+          loyalty_points: this.useLoyaltyPoints ? parseInt(this.pointsToRedeem) || 0 : 0,
+          special_instructions: this.specialInstructions || '',
+          notes: this.specialInstructions || '',
+          promotion_id: this.appliedPromotion?.id || this.appliedPromotion?._id || null
+        };
+
+        console.log('📦 Order data prepared:', orderData);
+
+        // Handle payment based on method
+        if (this.paymentMethod === 'cash') {
+          // Cash on delivery - create order directly
+          const result = await this.createOrder(orderData);
+          
+          if (result.success) {
+            // Show confirmation
+            this.confirmedOrder = {
+              id: result.data.id || result.data.order_id,
+              total: finalTotal.toFixed(2),
+              paymentMethod: this.paymentMethod,
+              deliveryType: this.deliveryType,
+              pointsEarned: result.data.points_earned || 0,
+              pointsUsed: orderData.points_to_redeem || 0
+            };
+            
+            // Clear cart
+            this.clearCart();
+            localStorage.removeItem('ramyeon_cart');
+            this.$emit('cartCleared');
+            
+            // Show confirmation modal
+            this.showOrderConfirmation = true;
+            
+            console.log('✅ Order placed successfully!');
+          } else {
+            throw new Error(result.error || 'Failed to create order');
+          }
+        } else if (this.paymentMethod === 'gcash') {
+          // GCash payment flow
+          const result = await this.createOrder(orderData);
+          
+          if (result.success) {
+            const orderId = result.data?.order_id || result.data?.order?.order_id || result.data?.id || result.data?.order?._id;
+            console.log('💳 Order ID for GCash payment:', orderId);
+            this.savePendingOrder(orderId, finalTotal);
+            const paymentSource = await this.processGCashPayment(orderId);
+            
+            if (paymentSource && paymentSource.checkout_url) {
+              window.location.href = paymentSource.checkout_url;
+            } else {
+              throw new Error('Failed to initialize GCash payment');
+            }
+          } else {
+            throw new Error(result.error || 'Failed to create order');
+          }
+        } else if (this.paymentMethod === 'card') {
+          // Card payment flow
+          const result = await this.createOrder(orderData);
+          
+          if (result.success) {
+            const orderId = result.data?.order_id || result.data?.order?.order_id || result.data?.id || result.data?.order?._id;
+            console.log('💳 Order ID for Card payment:', orderId);
+            this.savePendingOrder(orderId, finalTotal);
+            const paymentSource = await this.processCardPayment(orderId);
+            
+            if (paymentSource && paymentSource.checkout_url) {
+              window.location.href = paymentSource.checkout_url;
+            } else {
+              throw new Error('Failed to initialize card payment');
+            }
+          } else {
+            throw new Error(result.error || 'Failed to create order');
+          }
+        } else if (this.paymentMethod === 'grabpay') {
+          // GrabPay payment flow
+          const result = await this.createOrder(orderData);
+          
+          if (result.success) {
+            const orderId = result.data?.order_id || result.data?.order?.order_id || result.data?.id || result.data?.order?._id;
+            console.log('💳 Order ID for GrabPay payment:', orderId);
+            this.savePendingOrder(orderId, finalTotal);
+            const paymentSource = await this.processGrabPayPayment(orderId);
+            
+            if (paymentSource && paymentSource.checkout_url) {
+              window.location.href = paymentSource.checkout_url;
+            } else {
+              throw new Error('Failed to initialize GrabPay payment');
+            }
+          } else {
+            throw new Error(result.error || 'Failed to create order');
+          }
+        } else {
+          // Cash on delivery - no redirect needed
+          const result = await this.createOrder(orderData);
+          
+          if (result.success) {
+            this.confirmedOrder = {
+              id: result.data.id || result.data.order_id || result.data.order?.order_id,
+              total: finalTotal.toFixed(2),
+              paymentMethod: this.paymentMethod,
+              deliveryType: this.deliveryType,
+              pointsEarned: result.data.points_earned || result.data.order?.loyalty_points_earned || 0,
+              pointsUsed: orderData.points_to_redeem || 0
+            };
+            
+            this.clearCart();
+            localStorage.removeItem('ramyeon_cart');
+            this.showOrderConfirmation = true;
+            
+            console.log('✅ Order placed successfully!');
+          } else {
+            throw new Error(result.error || 'Failed to create order');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Checkout error:', error);
+        alert(error.message || 'Failed to place order. Please try again.');
+      } finally {
+        this.isProcessing = false;
+      }
     },
 
     async processGCashPayment(orderId) {
@@ -1204,15 +1423,124 @@ export default {
           customerName: this.userProfile?.full_name || 'Customer'
         });
         
-        return source;
+        // Normalize response to extract checkout_url
+        // PayMongo sources return: data.attributes.redirect.checkout_url
+        const checkoutUrl = source?.data?.attributes?.redirect?.checkout_url ||
+                           source?.data?.attributes?.checkout_url ||
+                           source?.checkout_url;
+        
+        if (!checkoutUrl) {
+          console.error('GCash payment response:', source);
+          throw new Error('No checkout URL received from GCash payment');
+        }
+        
+        return {
+          ...source,
+          checkout_url: checkoutUrl
+        };
       } catch (error) {
         console.error('GCash payment error:', error);
         throw new Error('Failed to process GCash payment. Please try again.');
       }
     },
 
-    // Include ALL remaining methods from your original file...
-    // (processPayMayaPayment, processCardPayment, processGrabPayPayment, etc.)
+    async processCardPayment(orderId) {
+      try {
+        const source = await paymongoAPI.processCardPayment({
+          amount: this.finalTotal,
+          orderId: orderId,
+          customerEmail: this.userProfile?.email || 'customer@example.com',
+          customerName: this.userProfile?.full_name || 'Customer',
+          cardDetails: this.cardDetails
+        });
+        
+        // Normalize response to extract checkout_url
+        // Payment links return: data.attributes.checkout_url
+        // Sources return: data.attributes.redirect.checkout_url
+        const checkoutUrl = source?.data?.attributes?.checkout_url ||
+                           source?.data?.attributes?.redirect?.checkout_url ||
+                           source?.checkout_url;
+        
+        if (!checkoutUrl) {
+          console.error('Card payment response:', source);
+          throw new Error('No checkout URL received from card payment');
+        }
+        
+        return {
+          ...source,
+          checkout_url: checkoutUrl
+        };
+      } catch (error) {
+        console.error('Card payment error:', error);
+        throw new Error('Failed to process card payment. Please try again.');
+      }
+    },
+
+    async processGrabPayPayment(orderId) {
+      try {
+        const source = await paymongoAPI.processGrabPayPayment({
+          amount: this.finalTotal,
+          orderId: orderId,
+          customerEmail: this.userProfile?.email || 'customer@example.com',
+          customerName: this.userProfile?.full_name || 'Customer'
+        });
+        
+        // Normalize response to extract checkout_url
+        // PayMongo sources return: data.attributes.redirect.checkout_url
+        const checkoutUrl = source?.data?.attributes?.redirect?.checkout_url ||
+                           source?.data?.attributes?.checkout_url ||
+                           source?.checkout_url;
+        
+        if (!checkoutUrl) {
+          console.error('GrabPay payment response:', source);
+          throw new Error('No checkout URL received from GrabPay payment');
+        }
+        
+        return {
+          ...source,
+          checkout_url: checkoutUrl
+        };
+      } catch (error) {
+        console.error('GrabPay payment error:', error);
+        throw new Error('Failed to process GrabPay payment. Please try again.');
+      }
+    },
+    
+    checkPaymentReturn() {
+      // Check for payment return parameters in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+      
+      const paymentStatus = urlParams.get('payment') || hashParams.get('payment');
+      const orderId = urlParams.get('order') || hashParams.get('order') || urlParams.get('order_id') || hashParams.get('order_id');
+      
+      if (paymentStatus && orderId) {
+        console.log('💳 Payment return detected:', { paymentStatus, orderId });
+        const pendingOrder = this.loadPendingOrder(orderId);
+        
+        if (paymentStatus === 'success') {
+          console.log('✅ Payment marked as success. Pending order:', pendingOrder);
+          
+          this.confirmedOrder = {
+            id: orderId,
+            total: pendingOrder?.total || this.finalTotal.toFixed(2),
+            paymentMethod: pendingOrder?.paymentMethod || this.paymentMethod,
+            deliveryType: pendingOrder?.deliveryType || this.deliveryType,
+            pointsEarned: pendingOrder?.pointsEarned || 0,
+            pointsUsed: pendingOrder?.pointsUsed || 0
+          };
+          
+          this.clearCart();
+          localStorage.removeItem('ramyeon_cart');
+          this.$emit('cartCleared');
+          this.showOrderConfirmation = true;
+        } else {
+          alert('Payment failed or was cancelled. Please try again.');
+        }
+        
+        this.clearPendingOrder();
+      }
+    },
     
     closeConfirmationModal() {
       console.log('🚪 Closing confirmation modal');
@@ -1247,7 +1575,7 @@ export default {
         
         if (response && response.customer) {
           this.userProfile = {
-            id: response.customer.customer_id,
+            id: response.customer.id || response.customer.customer_id,
             email: response.customer.email,
             full_name: response.customer.full_name,
             loyalty_points: response.customer.loyalty_points || 0
@@ -1306,10 +1634,9 @@ export default {
       }, 100);
     } else {
       if (CART_DEBUG) console.log('[Cart] No payment params in URL, skipping payment return check');
-      const stalePendingOrder = localStorage.getItem('ramyeon_pending_order');
-      if (stalePendingOrder) {
+      if (localStorage.getItem(this.pendingOrderKey)) {
         if (CART_DEBUG) console.log('[Cart] Clearing stale pending order');
-        localStorage.removeItem('ramyeon_pending_order');
+        this.clearPendingOrder();
       }
     }
     
@@ -1339,6 +1666,12 @@ export default {
     } else {
       console.log('ℹ️ No saved cart found');
       this.cartItems = [];
+    }
+    
+    // Calculate cart totals after loading items
+    if (this.cartItems.length > 0 && this.calculateCartTotals) {
+      await this.calculateCartTotals();
+      console.log('💰 Cart totals calculated after loading items');
     }
     
     this.$nextTick(() => {

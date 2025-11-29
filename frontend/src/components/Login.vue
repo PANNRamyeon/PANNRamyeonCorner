@@ -103,10 +103,6 @@
           <span class="social-icon">🔴</span>
           <span>Continue with Google</span>
         </button>
-        <button class="social-btn facebook-btn" @click="socialLogin('facebook')" :disabled="isLoading">
-          <span class="social-icon">📘</span>
-          <span>Continue with Facebook</span>
-        </button>
       </div>
       
       <!-- Test Account Info -->

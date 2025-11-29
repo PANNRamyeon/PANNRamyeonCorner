@@ -176,18 +176,18 @@ export function useLoyalty() {
     try {
       console.log('🧮 Calculating loyalty points earned for subtotal:', subtotalAfterDiscount)
       
-      const result = await loyaltyAPI.calculatePointsEarned(subtotalAfterDiscount)
+      // apiLoyalty.calculatePointsEarned returns a number directly, not an object
+      const points = loyaltyAPI.calculatePointsEarned(subtotalAfterDiscount)
       
-      if (result.success) {
-        const points = result.points_earned || result.data?.points_earned || 0
+      if (typeof points === 'number' && points >= 0) {
         console.log(`✅ Points earned: ${points}`)
         return { success: true, data: { points_earned: points } }
       } else {
-        throw new Error(result.error || 'Failed to calculate points earned')
+        throw new Error('Invalid points calculation result')
       }
     } catch (err) {
       console.error('❌ Error calculating points earned:', err)
-      return { success: false, error: err.message }
+      return { success: false, error: err.message || 'Failed to calculate points earned' }
     }
   }
 

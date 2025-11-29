@@ -95,10 +95,6 @@
               <span class="social-icon">🔴</span>
               <span>Continue with Google</span>
             </button>
-            <button class="social-btn facebook-btn" @click="socialLogin('facebook')" :disabled="isLoading">
-              <span class="social-icon">📘</span>
-              <span>Continue with Facebook</span>
-            </button>
           </div>
 
           <!-- Back to Home Button -->
@@ -308,10 +304,6 @@
             <button class="social-btn google-btn" @click="socialSignUp('google')" :disabled="isLoading">
               <span class="social-icon">🔴</span>
               <span>Continue with Google</span>
-            </button>
-            <button class="social-btn facebook-btn" @click="socialSignUp('facebook')" :disabled="isLoading">
-              <span class="social-icon">📘</span>
-              <span>Continue with Facebook</span>
             </button>
           </div>
 

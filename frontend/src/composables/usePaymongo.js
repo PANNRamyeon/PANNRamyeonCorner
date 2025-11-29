@@ -147,6 +147,7 @@ export const processGCashPayment = async ({ amount, orderId, customerEmail, cust
 
 /**
  * Process PayMaya payment
+ * Try using 'maya' as source type (PayMongo's supported type for Maya/PayMaya wallet)
  * @param {Object} params - Payment parameters
  * @param {number} params.amount - Amount in pesos
  * @param {string} params.orderId - Order ID
@@ -157,6 +158,7 @@ export const processGCashPayment = async ({ amount, orderId, customerEmail, cust
 // eslint-disable-next-line no-unused-vars
 export const processPayMayaPayment = async ({ amount, orderId, customerEmail, customerName }) => {
   try {
+    // Try using 'maya' as source type (PayMongo's supported type for Maya wallet)
     const response = await fetch(`${PAYMONGO_API_URL}/sources`, {
       method: 'POST',
       headers: {
@@ -166,7 +168,7 @@ export const processPayMayaPayment = async ({ amount, orderId, customerEmail, cu
       body: JSON.stringify({
         data: {
           attributes: {
-            type: 'paymaya',
+            type: 'maya',
             amount: convertToCentavos(amount),
             currency: 'PHP',
             redirect: {
@@ -188,6 +190,13 @@ export const processPayMayaPayment = async ({ amount, orderId, customerEmail, cu
     if (!response.ok) {
       const error = await response.json();
       console.error('PayMaya API error response:', error);
+      
+      // If 'maya' source type fails, fall back to payment links
+      if (error.errors?.[0]?.detail?.includes('source_type') || error.errors?.[0]?.detail?.includes('invalid')) {
+        console.log('Maya source type not supported, falling back to payment links');
+        return await processPayMayaPaymentLink({ amount, orderId, customerEmail, customerName });
+      }
+      
       throw new Error(error.errors?.[0]?.detail || 'Failed to create PayMaya payment');
     }
 
@@ -196,9 +205,75 @@ export const processPayMayaPayment = async ({ amount, orderId, customerEmail, cu
     return data;
   } catch (error) {
     console.error('PayMaya payment error:', error);
+    // Fall back to payment links if source creation fails
+    if (!error.message.includes('payment link')) {
+      try {
+        return await processPayMayaPaymentLink({ amount, orderId, customerEmail, customerName });
+      } catch (linkError) {
+        throw error; // Throw original error if fallback also fails
+      }
+    }
     throw error;
   }
 };
+
+/**
+ * Fallback: Process PayMaya payment using Payment Links
+ * This shows all payment methods, so user has to select PayMaya again
+ * @param {Object} params - Payment parameters
+ * @returns {Promise<Object>} PayMongo payment link object
+ */
+// eslint-disable-next-line no-unused-vars
+async function processPayMayaPaymentLink({ amount, orderId, customerEmail, customerName }) {
+  const successUrl = `${window.location.origin}/#/cart?payment=success&order=${orderId}`;
+  const failedUrl = `${window.location.origin}/#/cart?payment=failed&order=${orderId}`;
+
+  const response = await fetch(`${PAYMONGO_API_URL}/links`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': getAuthHeader()
+    },
+    body: JSON.stringify({
+      data: {
+        attributes: {
+          amount: convertToCentavos(amount),
+          currency: 'PHP',
+          description: `Order #${orderId} - Ramyeon Order`,
+          remarks: `Order ${orderId}`,
+          redirect: {
+            success: successUrl,
+            failed: failedUrl
+          }
+        }
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('PayMaya payment link API error response:', error);
+    throw new Error(error.errors?.[0]?.detail || 'Failed to create PayMaya payment link');
+  }
+
+  const data = await response.json();
+  console.log('PayMaya payment link created:', data);
+  
+  return {
+    data: {
+      id: data.data.id,
+      type: 'payment_link',
+      attributes: {
+        redirect: {
+          checkout_url: data.data.attributes.checkout_url,
+          success: successUrl,
+          failed: failedUrl
+        },
+        status: data.data.attributes.status
+      }
+    }
+  };
+}
 
 /**
  * Process Card payment using Payment Links (redirects to PayMongo checkout)

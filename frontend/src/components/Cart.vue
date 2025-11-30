@@ -157,20 +157,21 @@
             <span class="discount-amount">-₱{{ pointsDiscount.toFixed(2) }}</span>
           </div>
           
-          <!-- ✅ UPDATED: Voucher/Promotion Display (if applied) -->
+          <!-- ✅ FIXED: Voucher/Promotion Display -->
           <div v-if="appliedPromotion" class="applied-voucher-summary">
             <div class="voucher-info-row">
               <div class="voucher-details">
                 <span class="voucher-icon">🎁</span>
                 <div>
-                  <div class="voucher-name">{{ appliedPromotion.name }}</div>
+                  <div class="voucher-name">{{ getVoucherDisplayName(appliedPromotion) }}</div>
                   <div class="voucher-description">{{ getPromotionDescription(appliedPromotion) }}</div>
                 </div>
               </div>
             </div>
             <div class="summary-row discount-row">
               <span>Voucher Discount</span>
-              <span class="discount-amount">-₱{{ promotionDiscount.toFixed(2) }}</span>
+              <span class="discount-amount" v-if="promotionDiscount > 0">-₱{{ promotionDiscount.toFixed(2) }}</span>
+              <span class="discount-amount" v-else>₱{{ promotionDiscount.toFixed(2) }}</span>
             </div>
           </div>
           
@@ -180,7 +181,6 @@
           </div>
         </div>
 
-        <!-- Rest of template (Delivery Options, Payment Methods, etc.) remains the same -->
         <!-- Delivery Options -->
         <div class="delivery-options">
           <h2>Delivery Options</h2>
@@ -362,7 +362,7 @@
       </transition>
     </teleport>
   </div>
-</template>
+</template> 
 
 <script>
 import { paymongoAPI } from '../composables/usePaymongo.js';
@@ -466,28 +466,186 @@ export default {
     }
   },
   methods: {
+    // ✅ NEW: Check for voucher selected from Profile
+    checkForSelectedVoucher() {
+      try {
+        const selectedVoucher = localStorage.getItem('ramyeon_selected_voucher');
+        if (selectedVoucher) {
+          const voucher = JSON.parse(selectedVoucher);
+          
+          console.log('🎫 Voucher selected from profile:', voucher);
+          
+          // Apply the voucher automatically
+          this.appliedPromotion = voucher;
+          this.promotionDiscount = this.computePromotionDiscount(voucher);
+          this.promoCode = voucher.code || voucher.name || '';
+          
+          this.showSuccessNotification(`Voucher "${this.getVoucherDisplayName(voucher)}" applied from profile!`);
+          
+          // Clear the selection so it doesn't apply again
+          localStorage.removeItem('ramyeon_selected_voucher');
+          
+          console.log('✅ Auto-applied voucher from profile:', this.getVoucherDisplayName(voucher));
+        }
+      } catch (error) {
+        console.error('Error applying selected voucher:', error);
+        localStorage.removeItem('ramyeon_selected_voucher');
+      }
+    },
+
+    // ✅ NEW: Get proper voucher display name
+    getVoucherDisplayName(promotion) {
+      if (!promotion) return 'Discount Applied';
+      
+      // Handle different voucher structures without breaking existing system
+      if (promotion.title) {
+        return promotion.title; // From profile vouchers
+      } else if (promotion.name) {
+        return promotion.name; // From backend promotions
+      } else if (promotion.code) {
+        return promotion.code.toUpperCase(); // From promo codes
+      }
+      
+      return 'Applied Voucher';
+    },
+
+    // ✅ ENHANCED: Promotion description with better formatting
+    getPromotionDescription(promotion) {
+      if (!promotion) return '';
+      
+      // Handle profile vouchers
+      if (promotion.subtitle) {
+        return promotion.subtitle;
+      }
+      
+      // Handle backend promotions
+      if (promotion.type === 'percentage') {
+        return `${promotion.discount_value}% off on eligible items`;
+      } else if (promotion.type === 'fixed_amount') {
+        return `₱${promotion.discount_value} off on your order`;
+      } else if (promotion.type === 'buy_x_get_y') {
+        const config = promotion.discount_config || {};
+        return `Buy ${config.buy_quantity || 2} get ${config.get_quantity || 1} free`;
+      }
+      
+      return promotion.description || 'Discount applied to your order';
+    },
+
+    // ✅ ENHANCED: Compute promotion discount (backward compatible)
+    computePromotionDiscount(promotion) {
+      if (!promotion || !Array.isArray(this.cartItems) || this.cartItems.length === 0) {
+        console.log('❌ No promotion or cart items for discount calculation');
+        return 0;
+      }
+      
+      let total = 0;
+      
+      // Handle profile vouchers (from localStorage)
+      if (promotion.discount_value !== undefined && promotion.type === undefined) {
+        // This is likely a profile voucher - use direct discount value
+        console.log('💰 Profile voucher detected with discount:', promotion.discount_value);
+        return Math.min(promotion.discount_value, this.subtotal);
+      }
+      
+      // Handle percentage vouchers from profile
+      if (promotion.discount && typeof promotion.discount === 'string' && promotion.discount.includes('%')) {
+        const percentage = parseFloat(promotion.discount.replace('%', ''));
+        console.log('📊 Percentage profile voucher detected:', percentage + '%');
+        const discount = (this.subtotal * percentage / 100);
+        return Math.min(discount, this.subtotal);
+      }
+      
+      // Handle fixed amount vouchers from profile  
+      if (promotion.discount && typeof promotion.discount === 'number') {
+        console.log('💰 Fixed amount profile voucher detected:', promotion.discount);
+        return Math.min(promotion.discount, this.subtotal);
+      }
+      
+      // Original logic for backend promotions (unchanged)
+      for (const item of this.cartItems) {
+        total += this.getItemDiscountForPromotion(item, promotion);
+      }
+      
+      console.log('🎯 Promotion discount calculated:', total);
+      return Math.max(0, total);
+    },
+
+    // ✅ ENHANCED: Item discount calculation (backward compatible)
+    getItemDiscountForPromotion(item, promotion) {
+      if (!promotion) return 0;
+      
+      // Check eligibility for the promotion
+      if (!this.isItemEligibleForPromotion(item, promotion)) {
+        return 0;
+      }
+
+      const originalPrice = parseFloat(item.price);
+      const quantity = parseInt(item.quantity) || 1;
+      let discountAmount = 0;
+
+      // Handle profile vouchers first (they apply to entire order)
+      if (promotion.discount_value !== undefined && promotion.type === undefined) {
+        // Profile voucher with direct discount - prorate across items
+        const itemRatio = (originalPrice * quantity) / this.subtotal;
+        discountAmount = promotion.discount_value * itemRatio;
+      }
+      // Handle percentage profile vouchers
+      else if (promotion.discount && typeof promotion.discount === 'string' && promotion.discount.includes('%')) {
+        const percentage = parseFloat(promotion.discount.replace('%', ''));
+        discountAmount = (originalPrice * (percentage / 100)) * quantity;
+      }
+      // Handle fixed amount profile vouchers
+      else if (promotion.discount && typeof promotion.discount === 'number') {
+        const itemRatio = (originalPrice * quantity) / this.subtotal;
+        discountAmount = promotion.discount * itemRatio;
+      }
+      // Handle backend promotions (original logic)
+      else if (promotion.type === 'percentage') {
+        discountAmount = (originalPrice * (promotion.discount_value / 100)) * quantity;
+      } else if (promotion.type === 'fixed_amount') {
+        discountAmount = Math.min(promotion.discount_value, originalPrice) * quantity;
+      }
+
+      console.log('🛒 Item discount for', item.name, ':', discountAmount);
+      return Math.max(0, discountAmount);
+    },
+
     async increaseQuantity(itemId) {
       const item = this.cartItems.find(item => item.id === itemId);
       if (item) {
         await this.updateCartItemQuantity(item.product_id || item.id, item.quantity + 1);
         await this.recalculateExistingPromotions();
+
+        // ⭐ Sync to localStorage
+        localStorage.setItem('ramyeon_cart', JSON.stringify(this.cartItems));
+
+        // ⭐ Notify App.vue
+        window.dispatchEvent(new Event('cart-updated'));
       }
     },
+    
     async decreaseQuantity(itemId) {
       const item = this.cartItems.find(item => item.id === itemId);
       if (item && item.quantity > 1) {
         await this.updateCartItemQuantity(item.product_id || item.id, item.quantity - 1);
         await this.recalculateExistingPromotions();
+
+        localStorage.setItem('ramyeon_cart', JSON.stringify(this.cartItems));
+        window.dispatchEvent(new Event('cart-updated'));
       }
     },
+    
     async removeItem(itemId) {
       const item = this.cartItems.find(item => item.id === itemId);
       if (item) {
         await this.removeFromCart(item.product_id || item.id);
         await this.recalculateExistingPromotions();
+
+        localStorage.setItem('ramyeon_cart', JSON.stringify(this.cartItems));
+        window.dispatchEvent(new Event('cart-updated'));
       }
     },
-
+    
     savePendingOrder(orderId, finalTotal) {
       try {
         const payload = {
@@ -760,62 +918,44 @@ export default {
     },
 
     // ✅ UPDATED: Automatic promotion application with voucher priority
-    getItemDiscountForPromotion(item, promotion) {
-      if (!promotion) return 0;
-      if (!this.isItemEligibleForPromotion(item, promotion)) return 0;
-
-      const originalPrice = parseFloat(item.price);
-      const quantity = parseInt(item.quantity) || 1;
-      let discountAmount = 0;
-
-      if (promotion.type === 'percentage') {
-        discountAmount = (originalPrice * (promotion.discount_value / 100)) * quantity;
-      } else if (promotion.type === 'fixed_amount') {
-        discountAmount = Math.min(promotion.discount_value, originalPrice) * quantity;
-      }
-
-      return Math.max(0, discountAmount);
-    },
-
-    computePromotionDiscount(promotion) {
-      if (!promotion || !Array.isArray(this.cartItems) || this.cartItems.length === 0) {
-        return 0;
-      }
-      let total = 0;
-      for (const item of this.cartItems) {
-        total += this.getItemDiscountForPromotion(item, promotion);
-      }
-      return Math.max(0, total);
-    },
-
-    // ✅ CRITICAL FIX: Priority system for voucher application
     async autoApplyBestPromotion() {
       try {
-        // 🔥 1. PRIORITY: If user selected a voucher → use it and STOP
+        // 🔥 1. PRIORITY: Check for voucher from Profile first
+        const selectedVoucher = localStorage.getItem('ramyeon_selected_voucher');
+        if (selectedVoucher) {
+          const voucher = JSON.parse(selectedVoucher);
+          console.log('✅ Profile voucher detected, applying:', this.getVoucherDisplayName(voucher));
+          
+          this.appliedPromotion = voucher;
+          this.promotionDiscount = this.computePromotionDiscount(voucher);
+          this.promoCode = voucher.code || voucher.name || '';
+          
+          localStorage.removeItem('ramyeon_selected_voucher');
+          console.log('✅ Profile voucher applied successfully');
+          return; // ⛔ STOP — do NOT compute automatic promotions
+        }
+
+        // 🔥 2. PRIORITY: If user selected a voucher in cart → use it and STOP
         if (this.cartStore?.selectedVoucher) {
           const voucher = this.cartStore.selectedVoucher;
 
           console.log('✅ User-selected voucher detected:', {
-            name: voucher.name,
-            type: voucher.type,
-            value: voucher.discount_value
+            name: this.getVoucherDisplayName(voucher),
+            type: voucher.type
           });
 
-          // Set voucher as the applied promotion
           this.appliedPromotion = voucher;
-
-          // Compute discount from voucher
           this.promotionDiscount = this.computePromotionDiscount(voucher);
 
           console.log('✅ Voucher applied:', {
-            name: voucher.name,
+            name: this.getVoucherDisplayName(voucher),
             discount: this.promotionDiscount
           });
 
           return; // ⛔ STOP — do NOT compute automatic promotions
         }
 
-        // 🔥 2. If a manual promo code was applied, DO NOT override it
+        // 🔥 3. If a manual promo code was applied, DO NOT override it
         if (this.appliedPromotion) {
           console.log('✅ Manual promo code already applied, skipping auto-apply');
           return;
@@ -831,7 +971,7 @@ export default {
           return;
         }
 
-        // 🔥 3. FILTER OUT PWD & SENIOR PROMOS
+        // 🔥 4. FILTER OUT PWD & SENIOR PROMOS
         const filteredPromotions = this.activePromotions.filter(promo =>
           promo.name !== 'PWD' &&
           promo.name !== 'Senior Citizen'
@@ -840,7 +980,7 @@ export default {
         let bestPromotion = null;
         let bestDiscount = 0;
 
-        // 🔥 4. Compute the best promotion from the filtered list
+        // 🔥 5. Compute the best promotion from the filtered list
         for (const promo of filteredPromotions) {
           if (promo.status !== 'active') continue;
 
@@ -852,12 +992,12 @@ export default {
           }
         }
 
-        // 🔥 5. Apply the best promotion if it exists
+        // 🔥 6. Apply the best promotion if it exists
         if (bestPromotion && bestDiscount > 0) {
           this.appliedPromotion = bestPromotion;
           this.promotionDiscount = bestDiscount;
           console.log('✅ Auto-applied best promotion:', {
-            name: bestPromotion.name,
+            name: this.getVoucherDisplayName(bestPromotion),
             discount: bestDiscount
           });
         } else {
@@ -895,21 +1035,6 @@ export default {
       } catch (error) {
         console.error('Error recalculating promotions:', error);
       }
-    },
-    
-    getPromotionDescription(promotion) {
-      if (!promotion) return '';
-      
-      if (promotion.type === 'percentage') {
-        return `${promotion.discount_value}% off on eligible items`;
-      } else if (promotion.type === 'fixed_amount') {
-        return `₱${promotion.discount_value} off on your order`;
-      } else if (promotion.type === 'buy_x_get_y') {
-        const config = promotion.discount_config || {};
-        return `Buy ${config.buy_quantity || 2} get ${config.get_quantity || 1} free`;
-      }
-      
-      return promotion.description || 'Discount applied';
     },
     
     // Per-item discount calculation methods
@@ -1082,12 +1207,8 @@ export default {
         }, 300);
       }, 3000);
     },
-    
-    // Map and payment methods continue from original code...
-    // (Include all remaining methods: openMap, closeMap, initializeMap, placeMarker, etc.)
-    // (proceedToCheckout, processGCashPayment, processPayMayaPayment, etc.)
-    // (The rest of your methods remain EXACTLY the same)
 
+    // Map and location methods
     async openMap() {
       this.showMap = true;
       
@@ -1597,9 +1718,6 @@ export default {
         this.isUserLoading = false;
       }
     }
-
-
-    // Add remaining helper methods...
   },
 
   async mounted() {
@@ -1629,6 +1747,8 @@ export default {
     
     await this.loadUserProfile();
 
+    // ✅ NEW: Check for voucher from Profile before loading cart
+    this.checkForSelectedVoucher();
     
     const savedCart = localStorage.getItem('ramyeon_cart');
     if (CART_DEBUG) console.log('[Cart] Loading cart from localStorage:', savedCart ? 'Found' : 'Empty');
@@ -1681,7 +1801,6 @@ export default {
   }
 }
 </script>
-
 
 <style scoped>
 .cart-page {

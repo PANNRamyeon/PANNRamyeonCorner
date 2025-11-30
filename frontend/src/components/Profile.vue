@@ -142,7 +142,7 @@
       :voucher="selectedVoucher"
       :isVisible="showVoucherModal"
       @close="closeVoucherModal"
-      @useVoucher="handleUseVoucher"
+      @useVoucher="useVoucher" 
       @saveVoucher="handleSaveVoucher"
       @removeVoucher="handleRemoveVoucher"
     />
@@ -215,9 +215,31 @@ export default {
     // =====================================================
     // VOUCHER USE LOGIC — LOCALSTORAGE HANDOFF
     // =====================================================
+    // In Profile.vue - Add this method
     useVoucher(voucher) {
+      // Store the selected voucher for cart to use
       localStorage.setItem('ramyeon_selected_voucher', JSON.stringify(voucher))
-      this.$router.push('/cart')
+      
+      // Show success message
+      this.showSuccessMessage("Voucher applied! Redirecting to cart...")
+      
+      // Remove from profile
+      this.user.vouchers = this.user.vouchers.filter(v => v.id !== voucher.id)
+      
+      // Remove from saved vouchers
+      const saved = JSON.parse(localStorage.getItem('ramyeon_saved_vouchers') || '[]')
+      localStorage.setItem(
+        'ramyeon_saved_vouchers',
+        JSON.stringify(saved.filter(v => v.id !== voucher.id))
+      )
+      
+      // Close modal and redirect to cart
+      this.closeVoucherModal()
+      
+      // Navigate to cart after short delay
+      setTimeout(() => {
+        this.$emit('setCurrentPage', 'Cart')
+      }, 1500)
     },
 
     // -----------------------------

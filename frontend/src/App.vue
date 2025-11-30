@@ -227,11 +227,14 @@ export default {
   mounted() {
     // Check URL hash to determine initial page (important for PayMongo redirects!)
     this.checkURLHash();
-    
+    window.addEventListener('cart-updated', this.loadCartItems);
     this.checkUserSession();
     this.loadDarkModePreference();
     this.loadCartItems();
     window.addEventListener('hashchange', this.handleHashChange);
+  },
+  beforeUnmount() {
+    window.removeEventListener('cart-updated', this.loadCartItems);
   },
   methods: {
     resetCart() {
@@ -421,10 +424,11 @@ export default {
         });
       }
 
-      // Save cart to localStorage
       localStorage.setItem('ramyeon_cart', JSON.stringify(this.cartItems));
 
-      // Show success message
+      // 👉 IMPORTANT: sync UI everywhere
+      window.dispatchEvent(new Event('cart-updated'));
+
       this.showCartNotification(product.name);
     },
     

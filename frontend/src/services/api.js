@@ -268,29 +268,44 @@ export const ordersAPI = {
   // -------------------------------------------------------------------------
   getAll: async (limit = 50, offset = 0) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const userSession = JSON.parse(localStorage.getItem('ramyeon_user_session') || '{}');
+      const customerId = userSession.id; // CUST-00040
 
-      if (!token) {
-        // fallback to localStorage
-        const orders = JSON.parse(localStorage.getItem('ramyeon_orders') || '[]');
+      console.log('📦 Loading orders for customer:', customerId);
+
+      if (!customerId) {
+        const userOrdersKey = `ramyeon_orders_${userSession.email || 'guest'}`;
+        const orders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
         return { success: true, results: orders };
       }
 
-      const response = await apiClient.get('/online/orders/history/', {
+      // Call the backend endpoint
+      const response = await apiClient.get(`/online-orders/customer/${customerId}/`, {
         params: { limit, offset }
       });
 
-      return { success: true, ...response.data };
+      console.log('✅ Backend response:', response.data);
+
+      // The backend returns an ARRAY directly, not {results: array}
+      // So we need to wrap it in the expected format
+      return { 
+        success: true, 
+        results: response.data // response.data is the array of orders
+      };
 
     } catch (error) {
-      console.error('❌ Error fetching orders:', {
-        msg: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-
-      const fallbackOrders = JSON.parse(localStorage.getItem('ramyeon_orders') || '[]');
-      return { success: false, results: fallbackOrders, error: error.message };
+      console.error('❌ Error fetching customer orders:', error);
+      
+      // Fallback to localStorage
+      const userSession = JSON.parse(localStorage.getItem('ramyeon_user_session') || '{}');
+      const userOrdersKey = `ramyeon_orders_${userSession.id || userSession.email || 'guest'}`;
+      const fallbackOrders = JSON.parse(localStorage.getItem(userOrdersKey) || '[]');
+      
+      return { 
+        success: false, 
+        results: fallbackOrders, 
+        error: error.message
+      };
     }
   },
 

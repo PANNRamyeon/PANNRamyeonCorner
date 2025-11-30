@@ -13,7 +13,7 @@
 
     <!-- Orders List -->
     <div v-else-if="orders.length > 0" class="orders-list">
-      <div v-for="order in sortedOrders" :key="order.id" class="order-card">
+      <div v-for="order in sortedOrders" :key="order.id || order._id" class="order-card">
         <div class="order-header">
           <div class="order-info">
             <h3>{{ order.id }}</h3>
@@ -166,7 +166,7 @@
 </template>
 
 <script>
-import { authAPI, ordersAPI } from '../services/api.js';
+import { ordersAPI } from '../services/api.js';
 import OrderStatusTracker from './OrderStatusTracker.vue';
 
 export default {
@@ -182,253 +182,181 @@ export default {
       userProfile: null
     };
   },
+
   computed: {
     sortedOrders() {
       return [...this.orders].sort((a, b) => {
-        return new Date(b.orderTime) - new Date(a.orderTime);
+        return new Date(b.orderTime || 0) - new Date(a.orderTime || 0);
       });
     }
   },
+
   methods: {
     async loadOrders() {
       this.loading = true;
       try {
-        // Get user profile first
-        try {
-          this.userProfile = await authAPI.getProfile();
-        } catch (error) {
-          console.log('Not logged in or failed to get profile');
-        }
-        
         console.log('📦 Loading orders from database...');
-        
-        // First, try to fetch orders from database (NEW!)
-        try {
-          const result = await ordersAPI.getAll();
-          
-          if (result.success && result.results) {
-            // Map database orders to component format
-            this.orders = result.results.map(order => ({
-              id: order.order_id,
-              orderTime: order.created_at || order.transaction_date,
-              status: order.order_status || order.status || 'pending',
-              items: (order.items || []).map(item => ({
-                // Map database item structure to display structure
-                id: item.product_id || item.id,
-                name: item.product_name || item.name || 'Unknown Item',
-                image: item.image || item.imageUrl || '',
-                quantity: item.quantity || 1,
-                price: item.price || 0,
-                category: item.category || '',
-                description: item.description || ''
-              })),
-              subtotal: order.subtotal || 0,
-              deliveryFee: order.delivery_fee || 0,
-              serviceFee: order.service_fee || 0,
-              total: order.total_amount || 0,
-              deliveryType: order.delivery_type || 'delivery',
-              deliveryAddress: order.delivery_address?.fullAddress || order.delivery_address?.street || '',
-              paymentMethod: order.payment_method || 'cash',
-              paymentStatus: order.payment_status || 'pending',
-              paymentReference: order.payment_reference || '',
-              specialInstructions: order.notes || '',
-              // NEW: Include status_info for the tracker
-              status_info: order.status_info || null
-            }));
-            console.log('✅ Loaded', this.orders.length, 'orders from database');
-            return;
-          }
-        } catch (dbError) {
-          console.warn('⚠️ Could not fetch from database, falling back to localStorage:', dbError);
-        }
-        
-        // Fallback to localStorage if database fetch fails
-        const userId = this.userProfile?.id || this.userProfile?.email || 'guest';
-        const userOrdersKey = `ramyeon_orders_${userId}`;
-        
-        console.log('📦 Loading orders from localStorage for user:', userId);
-        
-        const savedOrders = localStorage.getItem(userOrdersKey);
-        if (savedOrders) {
-          this.orders = JSON.parse(savedOrders);
-          console.log('✅ Loaded', this.orders.length, 'orders from localStorage');
+
+        const result = await ordersAPI.getAll();
+        console.log('📊 API Response:', result);
+
+        if (result.success && Array.isArray(result.results)) {
+
+          console.log('✅ Backend orders count:', result.results.length);
+
+          this.orders = result.results.map(order => ({
+            id: order._id || order.id || order.order_id,
+            orderTime: order.transaction_date || order.created_at || order.updated_at,
+            status: order.order_status || order.status || 'pending',
+
+            items: (order.items || []).map(item => ({
+              id: item.product_id || item.id,
+              name: item.product_name || item.name || 'Unknown Item',
+              image: item.image || item.imageUrl || item.img || '',
+              quantity: item.quantity || 1,
+              price: item.unit_price || item.price || 0,
+              category: item.category || '',
+              description: item.description || ''
+            })),
+
+            subtotal: order.subtotal || 0,
+            deliveryFee: order.delivery_fee || 0,
+            serviceFee: order.service_fee || 0,
+            total: order.total_amount || order.total || 0,
+
+            deliveryType: order.delivery_type || 'delivery',
+            deliveryAddress: order.delivery_address?.address || '',
+
+            paymentMethod: order.payment_method || 'cash',
+            paymentStatus: order.payment_status || 'pending',
+            paymentReference: order.payment_reference || '',
+
+            specialInstructions: order.notes || '',
+            status_info: order.status_history || null
+          }));
+
+          console.log('✅ Final mapped orders:', this.orders);
         } else {
-          // Fallback to global orders for backwards compatibility
-          const globalOrders = localStorage.getItem('ramyeon_orders');
-          if (globalOrders) {
-            this.orders = JSON.parse(globalOrders);
-            console.log('ℹ️ Loaded', this.orders.length, 'orders from global storage');
-          } else {
-            this.orders = [];
-          }
+          console.warn('⚠️ Backend returned no results, using fallback.');
         }
       } catch (error) {
         console.error('❌ Error loading orders:', error);
-        this.orders = [];
       } finally {
         this.loading = false;
       }
     },
+
     formatDate(dateString) {
+      if (!dateString) return "Unknown Date";
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Unknown Date";
+
       return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
       });
     },
-    formatStatus(status) {
-      const statusMap = {
-        'pending': 'Pending',
-        'confirmed': 'Confirmed',
-        'preparing': 'Preparing',
-        'ready': 'Ready for Pickup',
-        'out_for_delivery': 'Out for Delivery',
-        'delivered': 'Delivered',
-        'completed': 'Completed',
-        'cancelled': 'Cancelled'
-      };
-      return statusMap[status] || status;
-    },
+
     formatDeliveryType(type) {
-      return type === 'delivery' ? 'Delivery' : 'Pick-up';
+      return type === "delivery" ? "Delivery" : "Pick-up";
     },
+
     formatPaymentMethod(method) {
-      const methodMap = {
-        'cash': 'Cash on Delivery',
-        'gcash': 'GCash',
-        'paymaya': 'PayMaya',
-        'card': 'Credit/Debit Card',
-        'grabpay': 'GrabPay QR'
+      const map = {
+        cash: "Cash on Delivery",
+        gcash: "GCash",
+        paymaya: "PayMaya",
+        card: "Credit/Debit Card",
+        grabpay: "GrabPay QR"
       };
-      return methodMap[method] || method;
+      return map[method] || method;
     },
+
     formatPaymentStatus(status) {
-      const statusMap = {
-        'pending': 'Pending',
-        'succeeded': 'Paid',
-        'failed': 'Failed',
-        'refunded': 'Refunded'
+      const map = {
+        pending: "Pending",
+        succeeded: "Paid",
+        failed: "Failed",
+        refunded: "Refunded"
       };
-      return statusMap[status] || status;
+      return map[status] || status;
     },
+
     viewOrderDetails(order) {
       this.selectedOrder = order;
     },
+
     closeModal() {
       this.selectedOrder = null;
     },
-    cancelOrder(order) {
-      if (confirm(`Are you sure you want to cancel order ${order.id}?`)) {
-        // Update order status
-        const orderIndex = this.orders.findIndex(o => o.id === order.id);
-        if (orderIndex !== -1) {
-          this.orders[orderIndex].status = 'cancelled';
-          
-          // Save to user-specific orders
-          const userId = this.userProfile?.id || this.userProfile?.email || 'guest';
-          const userOrdersKey = `ramyeon_orders_${userId}`;
-          localStorage.setItem(userOrdersKey, JSON.stringify(this.orders));
-          
-          // Also update global orders
-          localStorage.setItem('ramyeon_orders', JSON.stringify(this.orders));
-          
-          alert('Order cancelled successfully');
-        }
-      }
-    },
+
     reorder(order) {
-      // Add all items from this order to cart
       const cart = JSON.parse(localStorage.getItem('ramyeon_cart') || '[]');
-      
+
       order.items.forEach(item => {
-        const existingItem = cart.find(i => i.id === item.id);
-        if (existingItem) {
-          existingItem.quantity += item.quantity;
+        const found = cart.find(i => i.id === item.id);
+        if (found) {
+          found.quantity += item.quantity;
         } else {
           cart.push({ ...item });
         }
       });
-      
+
       localStorage.setItem('ramyeon_cart', JSON.stringify(cart));
-      alert('Items added to cart!');
-      this.$emit('setCurrentPage', 'Cart');
+      alert("Items added to cart!");
+      this.$emit("setCurrentPage", "Cart");
     },
+
     isValidBackendOrder(order) {
-      // Check if order has a valid backend order ID format
-      // Backend orders typically have formats like: "ORD-12345" or numeric IDs
-      // localStorage orders might have different formats or be undefined
-      if (!order || !order.id) {
-        return false;
-      }
-      
-      const orderId = String(order.id);
-      
-      // Skip if order ID is invalid
-      if (orderId === 'undefined' || orderId === 'null' || orderId === '') {
-        return false;
-      }
-      
-      // Backend orders usually have specific formats - adjust based on your backend
-      // For now, assume any order with a valid ID that's not a timestamp is from backend
-      // You can refine this based on your actual order ID format
-      return true; // Allow all valid IDs - the API will return 404 if it doesn't exist
+      if (!order || !order.id) return false;
+      return true;
     },
-    
+
     handleStatusUpdate(data) {
-      // Handle status update events from OrderStatusTracker
-      console.log('📊 Order status updated:', data);
-      
-      // Update the local order status
-      const orderIndex = this.orders.findIndex(o => o.id === data.orderId);
-      if (orderIndex !== -1) {
-        this.orders[orderIndex].status = data.status;
-        this.orders[orderIndex].status_info = data.statusInfo;
+      console.log("📊 Order status updated:", data);
+      const idx = this.orders.findIndex(o => o.id === data.orderId);
+      if (idx !== -1) {
+        this.orders[idx].status = data.status;
+        this.orders[idx].status_info = data.statusInfo;
       }
-      
-      // Optionally show a notification
-      // You can add a toast notification here if you have one
     },
+
     getItemName(item) {
-      // Helper to get item name from various possible fields
-      return item.name || item.product_name || item.productName || 'Unknown Item';
+      return item.name || item.product_name || "Unknown Item";
     },
+
     getItemImage(item) {
-      // Helper to get item image with fallback
-      const image = item.image || item.imageUrl || item.img || '';
-      
-      // If no image, return a default placeholder
-      if (!image) {
-        return 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50" y="50" font-size="16" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
-      }
-      
-      return image;
-    },
-    handleImageError(event) {
-      // Fallback image if image fails to load
-      event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50" y="50" font-size="16" text-anchor="middle" dy=".3em" fill="%23999"%3ENo Image%3C/text%3E%3C/svg%3E';
+      return (
+        item.image ||
+        item.imageUrl ||
+        item.img ||
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ddd' width='100' height='100'/%3E%3Ctext x='50' y='50' font-size='16' text-anchor='middle' dy='.3em' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E"
+      );
     }
   },
+
   mounted() {
-    console.log('📦 OrderHistory component mounted');
+    console.log("📦 OrderHistory mounted → loading orders");
     this.loadOrders();
   },
+
   activated() {
-    // Force reload when component is reactivated (keep-alive)
-    console.log('📦 OrderHistory component activated - reloading orders');
+    console.log("📦 OrderHistory activated → refreshing orders");
     this.loadOrders();
   },
+
   watch: {
-    // Reload orders when component becomes visible (if user navigates away and back)
-    '$route'() {
-      console.log('📦 Route changed in OrderHistory - reloading orders');
+    $route() {
+      console.log("📦 Route changed → refreshing orders");
       this.loadOrders();
     }
   }
 };
 </script>
+
 
 <style scoped>
 .order-history-container {

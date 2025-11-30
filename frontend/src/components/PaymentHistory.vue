@@ -106,177 +106,127 @@
 </template>
 
 <script>
+import { ordersAPI } from "../services/api.js";
+
 export default {
-  name: 'PaymentHistory',
+  name: "PaymentHistory",
   data() {
     return {
       payments: [],
-      statusFilter: 'all',
-      methodFilter: 'all'
+      statusFilter: "all",
+      methodFilter: "all"
     };
   },
+
   computed: {
     filteredPayments() {
       let filtered = [...this.payments];
 
-      if (this.statusFilter !== 'all') {
+      if (this.statusFilter !== "all") {
         filtered = filtered.filter(p => p.status === this.statusFilter);
       }
 
-      if (this.methodFilter !== 'all') {
+      if (this.methodFilter !== "all") {
         filtered = filtered.filter(p => p.method === this.methodFilter);
       }
 
-      // Sort by date, newest first
-      return filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      return filtered.sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      );
     },
+
     statistics() {
-      const stats = {
-        successful: 0,
-        failed: 0,
-        totalPaid: 0,
-        totalAttempts: this.payments.length
+      return {
+        successful: this.payments.filter(p => p.status === "succeeded").length,
+        failed: this.payments.filter(p => p.status === "failed" || p.status === "cancelled").length,
+        totalAttempts: this.payments.length,
+        totalPaid: this.payments
+          .filter(p => p.status === "succeeded")
+          .reduce((sum, p) => sum + p.amount, 0)
       };
-
-      // Calculate from payment attempts
-      this.payments.forEach(payment => {
-        if (payment.status === 'succeeded') {
-          stats.successful++;
-        } else if (payment.status === 'failed' || payment.status === 'cancelled') {
-          stats.failed++;
-        }
-      });
-
-      // Calculate TOTAL PAID from actual completed orders (more accurate!)
-      try {
-        // Check all user-specific orders
-        const userOrderKeys = Object.keys(localStorage).filter(k => k.startsWith('ramyeon_orders_'));
-        let allOrders = [];
-        
-        userOrderKeys.forEach(key => {
-          try {
-            const orders = JSON.parse(localStorage.getItem(key) || '[]');
-            allOrders = allOrders.concat(orders);
-          } catch (e) {
-            console.error('Error parsing orders:', e);
-          }
-        });
-        
-        // Also check global orders
-        try {
-          const globalOrders = JSON.parse(localStorage.getItem('ramyeon_orders') || '[]');
-          allOrders = allOrders.concat(globalOrders);
-        } catch (e) {
-          console.error('Error parsing global orders:', e);
-        }
-        
-        // Remove duplicates (same order ID)
-        const uniqueOrders = allOrders.reduce((acc, order) => {
-          if (!acc.find(o => o.id === order.id)) {
-            acc.push(order);
-          }
-          return acc;
-        }, []);
-        
-        // Sum up only PAID orders (status: confirmed or paymentStatus: succeeded)
-        stats.totalPaid = uniqueOrders
-          .filter(order => 
-            order.paymentStatus === 'succeeded' || 
-            order.status === 'confirmed' ||
-            (order.paymentMethod !== 'cash' && order.status !== 'pending')
-          )
-          .reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0);
-          
-        console.log('💰 Total Paid calculated from orders:', stats.totalPaid);
-        console.log('📦 Paid orders:', uniqueOrders.filter(o => 
-          o.paymentStatus === 'succeeded' || 
-          o.status === 'confirmed'
-        ));
-      } catch (error) {
-        console.error('Error calculating total paid from orders:', error);
-        // Fallback to payment history if orders calculation fails
-        this.payments.forEach(payment => {
-          if (payment.status === 'succeeded') {
-            stats.totalPaid += payment.amount;
-          }
-        });
-      }
-
-      return stats;
     }
   },
-  methods: {
-    loadPaymentHistory() {
-      try {
-        // Get the current logged-in user session
-        const userSession = JSON.parse(localStorage.getItem('ramyeon_user_session') || '{}');
 
-        // If no user session found → no payment history
-        if (!userSession.id) {
+  methods: {
+    async loadPaymentHistory() {
+      try {
+        // Load the customer’s orders from backend
+        const result = await ordersAPI.getAll();
+
+        if (!result.success || !Array.isArray(result.results)) {
           this.payments = [];
           return;
         }
 
-        // Use per-user payment history key
-        const key = `ramyeon_payment_history_${userSession.id}`;
+        // Convert each order → payment entry
+        this.payments = result.results.map(order => {
+          return {
+            orderId: order._id || order.id,
+            timestamp: order.transaction_date || order.created_at || order.updated_at,
+            method: order.payment_method || "cash",
+            status: order.payment_status || "pending",
+            amount: order.total_amount || order.total || 0,
+            error: order.payment_status === "failed" ? (order.error_message || "Payment failed") : null
+          };
+        });
 
-        // Load payment history for ONLY this user
-        const savedPayments = localStorage.getItem(key);
-
-        this.payments = savedPayments ? JSON.parse(savedPayments) : [];
-
-      } catch (error) {
-        console.error('Error loading payment history:', error);
+      } catch (err) {
+        console.error("Error loading payment history:", err);
         this.payments = [];
       }
     },
-    
+
     formatDate(dateString) {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
       });
     },
-    formatStatus(status) {
-      const statusMap = {
-        'initiated': 'Initiated',
-        'redirected': 'Redirected to Payment',
-        'succeeded': 'Payment Successful',
-        'failed': 'Payment Failed',
-        'cancelled': 'Payment Cancelled'
+
+    formatStatus(s) {
+      const map = {
+        initiated: "Initiated",
+        redirected: "Redirected to Payment",
+        succeeded: "Payment Successful",
+        failed: "Payment Failed",
+        cancelled: "Payment Cancelled"
       };
-      return statusMap[status] || status;
+      return map[s] || s;
     },
+
     formatMethod(method) {
-      const methodMap = {
-        'cash': 'Cash on Delivery',
-        'gcash': 'GCash',
-        'paymaya': 'PayMaya',
-        'card': 'Credit/Debit Card',
-        'grabpay': 'GrabPay QR'
+      const map = {
+        cash: "Cash on Delivery",
+        gcash: "GCash",
+        paymaya: "PayMaya",
+        card: "Credit/Debit Card",
+        grabpay: "GrabPay QR"
       };
-      return methodMap[method] || method;
+      return map[method] || method;
     },
+
     getMethodIcon(method) {
       const iconMap = {
-        'cash': '💵',
-        'gcash': '📱',
-        'paymaya': '🏦',
-        'card': '💳',
-        'grabpay': '🎯'
+        cash: "💵",
+        gcash: "📱",
+        paymaya: "🏦",
+        card: "💳",
+        grabpay: "🎯"
       };
-      return iconMap[method] || '💰';
+      return iconMap[method] || "💰";
     }
   },
+
   mounted() {
     this.loadPaymentHistory();
   }
 };
 </script>
+
 
 <style scoped>
 .payment-history-container {

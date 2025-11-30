@@ -409,35 +409,21 @@ export const ordersAPI = {
   // -------------------------------------------------------------------------
   updateStatus: async (orderId, newStatus, notes = '') => {
     try {
-      if (!orderId) return { success: false, error: 'Order ID required' };
-      if (!newStatus) return { success: false, error: 'Status required' };
-
-      const token = localStorage.getItem('access_token');
-      if (!token) return { success: false, error: 'Not authenticated' };
-
-      const response = await apiClient.post(`/online/orders/${orderId}/update-status/`, {
+      const res = await apiClient.post(`/online-orders/${orderId}/status/`, {
         status: newStatus,
-        notes,
+        notes: notes
       });
 
-      return { success: true, ...response.data };
+      return { success: true, ...res.data };
 
-    } catch (error) {
-      if (error.response?.status === 403)
-        return { success: false, error: 'Unauthorized. POS staff only.' };
-
-      if (error.response?.status === 404)
-        return { success: false, error: 'Order not found' };
-
-      if (error.response?.status === 400)
-        return { success: false, error: error.response.data?.message || 'Invalid status' };
-
+    } catch (err) {
       return {
         success: false,
-        error: error.response?.data?.message || error.message || 'Failed to update order status'
+        error: err.response?.data?.error || "Failed to update status"
       };
     }
   },
+
 };
 
 

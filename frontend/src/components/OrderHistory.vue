@@ -16,7 +16,7 @@
       <div v-for="order in sortedOrders" :key="order.id || order._id" class="order-card">
         <div class="order-header">
           <div class="order-info">
-            <h3>{{ order.id }}</h3>
+            <h3>{{ order.displayId }}</h3>
             <span class="order-date">{{ formatDate(order.orderTime) }}</span>
           </div>
         </div>
@@ -90,7 +90,7 @@
 
         <div class="order-actions">
           <button @click="viewOrderDetails(order)" class="btn-details">View Details</button>
-          <button v-if="order.status === 'pending'" @click="cancelOrder(order)" class="btn-cancel">Cancel Order</button>
+        <!--  <button v-if="order.status === 'pending'" @click="cancelOrder(order)" class="btn-cancel">Cancel Order</button>-->
           <button @click="reorder(order)" class="btn-reorder">Order Again</button>
         </div>
       </div>
@@ -174,12 +174,12 @@ export default {
   components: {
     OrderStatusTracker
   },
+
   data() {
     return {
       orders: [],
       loading: false,
-      selectedOrder: null,
-      userProfile: null
+      selectedOrder: null
     };
   },
 
@@ -192,31 +192,77 @@ export default {
   },
 
   methods: {
+    isValidBackendOrder(order) {
+      // A backend order is valid if it has a real backend ID (_id)
+      return !!(order && order.id);
+    },
+    // -------------------------------------------------------------
+    // CANCEL ORDER (FULLY FIXED)
+    // -------------------------------------------------------------
+    async cancelOrder(order) {
+      if (!confirm(`Are you sure you want to cancel order ${order.displayId}?`)) return;
+
+      console.log("🔍 Cancelling order → backend ID:", order.id);
+
+      try {
+        const response = await ordersAPI.updateStatus(
+          order.id,
+          "cancelled",
+          "Cancelled by customer"
+        );
+
+        console.log("🟢 Cancel response:", response);
+
+        if (!response.success) {
+          alert(`Failed to cancel order: ${response.error}`);
+          return;
+        }
+
+        // Update UI locally
+        const index = this.orders.findIndex(o => o.id === order.id);
+        if (index !== -1) {
+          this.orders[index].status = "cancelled";
+          this.orders[index].paymentStatus = "cancelled";
+        }
+
+        alert("Order cancelled successfully.");
+
+      } catch (err) {
+        console.error("❌ Cancel order error:", err);
+        alert("Unable to cancel order. Please try again.");
+      }
+    },
+
+    // -------------------------------------------------------------
+    // LOAD ORDERS FROM BACKEND (FIXED MAPPING)
+    // -------------------------------------------------------------
     async loadOrders() {
       this.loading = true;
-      try {
-        console.log('📦 Loading orders from database...');
 
+      try {
+        console.log("📦 Fetching customer orders...");
         const result = await ordersAPI.getAll();
-        console.log('📊 API Response:', result);
+        console.log("📊 Raw API result:", result);
 
         if (result.success && Array.isArray(result.results)) {
 
-          console.log('✅ Backend orders count:', result.results.length);
-
           this.orders = result.results.map(order => ({
-            id: order._id || order.id || order.order_id,
-            orderTime: order.transaction_date || order.created_at || order.updated_at,
-            status: order.order_status || order.status || 'pending',
+            id: order._id, // REAL backend MongoDB ID
+
+            displayId: order.order_id || order.id || order._id, // Human readable
+
+            orderTime: order.transaction_date ||
+                       order.created_at ||
+                       order.updated_at,
+
+            status: order.order_status || order.status || "pending",
 
             items: (order.items || []).map(item => ({
               id: item.product_id || item.id,
-              name: item.product_name || item.name || 'Unknown Item',
-              image: item.image || item.imageUrl || item.img || '',
+              name: item.product_name || item.name || "Unknown Item",
+              image: item.image || item.imageUrl || item.img || "",
               quantity: item.quantity || 1,
-              price: item.unit_price || item.price || 0,
-              category: item.category || '',
-              description: item.description || ''
+              price: item.unit_price || item.price || 0
             })),
 
             subtotal: order.subtotal || 0,
@@ -224,28 +270,30 @@ export default {
             serviceFee: order.service_fee || 0,
             total: order.total_amount || order.total || 0,
 
-            deliveryType: order.delivery_type || 'delivery',
-            deliveryAddress: order.delivery_address?.address || '',
+            deliveryType: order.delivery_type || "delivery",
+            deliveryAddress: order.delivery_address?.address || "",
 
-            paymentMethod: order.payment_method || 'cash',
-            paymentStatus: order.payment_status || 'pending',
-            paymentReference: order.payment_reference || '',
+            paymentMethod: order.payment_method || "cash",
+            paymentStatus: order.payment_status || "pending",
+            paymentReference: order.payment_reference || "",
 
-            specialInstructions: order.notes || '',
+            specialInstructions: order.notes || "",
             status_info: order.status_history || null
           }));
 
-          console.log('✅ Final mapped orders:', this.orders);
-        } else {
-          console.warn('⚠️ Backend returned no results, using fallback.');
+          console.log("🟢 Final mapped orders:", this.orders);
         }
-      } catch (error) {
-        console.error('❌ Error loading orders:', error);
-      } finally {
-        this.loading = false;
+
+      } catch (err) {
+        console.error("❌ Error loading orders:", err);
       }
+
+      this.loading = false;
     },
 
+    // -------------------------------------------------------------
+    // FORMATTERS
+    // -------------------------------------------------------------
     formatDate(dateString) {
       if (!dateString) return "Unknown Date";
       const date = new Date(dateString);
@@ -280,11 +328,15 @@ export default {
         pending: "Pending",
         succeeded: "Paid",
         failed: "Failed",
-        refunded: "Refunded"
+        refunded: "Refunded",
+        cancelled: "Cancelled"
       };
       return map[status] || status;
     },
 
+    // -------------------------------------------------------------
+    // VIEW DETAILS
+    // -------------------------------------------------------------
     viewOrderDetails(order) {
       this.selectedOrder = order;
     },
@@ -293,6 +345,9 @@ export default {
       this.selectedOrder = null;
     },
 
+    // -------------------------------------------------------------
+    // REORDER
+    // -------------------------------------------------------------
     reorder(order) {
       const cart = JSON.parse(localStorage.getItem('ramyeon_cart') || '[]');
 
@@ -306,24 +361,27 @@ export default {
       });
 
       localStorage.setItem('ramyeon_cart', JSON.stringify(cart));
+
       alert("Items added to cart!");
       this.$emit("setCurrentPage", "Cart");
     },
 
-    isValidBackendOrder(order) {
-      if (!order || !order.id) return false;
-      return true;
-    },
-
+    // -------------------------------------------------------------
+    // STATUS UPDATES FROM TRACKER
+    // -------------------------------------------------------------
     handleStatusUpdate(data) {
-      console.log("📊 Order status updated:", data);
-      const idx = this.orders.findIndex(o => o.id === data.orderId);
-      if (idx !== -1) {
-        this.orders[idx].status = data.status;
-        this.orders[idx].status_info = data.statusInfo;
+      console.log("📊 Status update from tracker:", data);
+
+      const index = this.orders.findIndex(o => o.id === data.orderId);
+      if (index !== -1) {
+        this.orders[index].status = data.status;
+        this.orders[index].status_info = data.statusInfo;
       }
     },
 
+    // -------------------------------------------------------------
+    // ITEM HELPERS
+    // -------------------------------------------------------------
     getItemName(item) {
       return item.name || item.product_name || "Unknown Item";
     },
@@ -356,6 +414,7 @@ export default {
   }
 };
 </script>
+
 
 
 <style scoped>

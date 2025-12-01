@@ -99,7 +99,7 @@ export function useOnlineOrder() {
   watch(cartItems, () => {
     persistCartToStorage()
   }, { deep: true })
-
+  
   // ================================================================
   // COMPUTED PROPERTIES
   // ================================================================
@@ -370,8 +370,8 @@ export function useOnlineOrder() {
       
       // Validate stock before creating order (allow fallback to local validation)
       try {
-        const stockValidation = await validateStock(orderData.items)
-        if (!stockValidation.success) {
+      const stockValidation = await validateStock(orderData.items)
+      if (!stockValidation.success) {
           console.warn('⚠️ Stock validation failed, but proceeding with order:', stockValidation.error)
           // Don't throw - allow order to proceed as stock validation has local fallback
         }
@@ -1096,7 +1096,7 @@ export function useOnlineOrder() {
   loadCartFromStorage().catch(err => {
     console.error('❌ Failed to load cart during initialization:', err)
   })
-
+  
   return {
     // State
     orders,

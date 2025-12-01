@@ -877,12 +877,12 @@ export default {
     
     async updatePointsDiscount() {
       if (CART_DEBUG) {
-        console.log('💎 updatePointsDiscount called:', {
-          useLoyaltyPoints: this.useLoyaltyPoints,
-          pointsToRedeem: this.pointsToRedeem,
-          pointsApplied: this.pointsApplied,
-          type: typeof this.pointsToRedeem
-        });
+      console.log('💎 updatePointsDiscount called:', {
+        useLoyaltyPoints: this.useLoyaltyPoints,
+        pointsToRedeem: this.pointsToRedeem,
+        pointsApplied: this.pointsApplied,
+        type: typeof this.pointsToRedeem
+      });
       }
       
       if (
@@ -987,20 +987,20 @@ export default {
           const voucher = this.cartStore.selectedVoucher;
 
           if (CART_DEBUG) {
-            console.log('✅ User-selected voucher detected:', {
+          console.log('✅ User-selected voucher detected:', {
               name: this.getVoucherDisplayName(voucher),
               type: voucher.type
-            });
+          });
           }
 
           this.appliedPromotion = voucher;
           this.promotionDiscount = this.computePromotionDiscount(voucher);
 
           if (CART_DEBUG) {
-            console.log('✅ Voucher applied:', {
+          console.log('✅ Voucher applied:', {
               name: this.getVoucherDisplayName(voucher),
-              discount: this.promotionDiscount
-            });
+            discount: this.promotionDiscount
+          });
           }
 
           return;
@@ -1051,10 +1051,10 @@ export default {
           this.promotionDiscount = bestDiscount;
 
           if (CART_DEBUG) {
-            console.log('✅ Auto-applied best promotion:', {
+          console.log('✅ Auto-applied best promotion:', {
               name: this.getVoucherDisplayName(bestPromotion),
-              discount: bestDiscount
-            });
+            discount: bestDiscount
+          });
           }
         } else {
           this.appliedPromotion = null;
@@ -1098,7 +1098,7 @@ export default {
       if (CART_DEBUG) {
         console.log('🔍 Checking discount for item:', item.name, 'Price:', item.price);
       }
-
+      
       const applicablePromotion = this.getApplicablePromotionForItem(item);
 
       if (CART_DEBUG) {
@@ -1166,7 +1166,7 @@ export default {
     
     isItemEligibleForPromotion(item, promotion) {
       if (!promotion) return false;
-
+      
       if (promotion.status !== 'active') return false;
       if (promotion.isDeleted) return false;
       
@@ -1260,7 +1260,7 @@ export default {
         }, 300);
       }, 3000);
     },
-
+    
     // Map and location methods
     async openMap() {
       this.showMap = true;
@@ -1742,18 +1742,18 @@ export default {
         this.isUserLoading = true;
 
         const response = await authAPI.getProfile();
-
+        
         const customer = 
           response.customer ||
           response.data ||
           response;
-
+        
         if (!customer) {
           console.warn('⚠ No customer data returned from getProfile()');
           return;
         }
 
-        this.userProfile = {
+          this.userProfile = {
           id: customer.id || customer.customer_id || null,
           email: customer.email || '',
           full_name: customer.full_name || customer.name || '',
@@ -1844,7 +1844,7 @@ export default {
     try {
       console.log('🎁 Loading active promotions for per-item discounts...');
       await this.getActivePromotions();
-
+      
       // Build globalPromotions from activePromotions
       this.loadGlobalPromotions();
       

@@ -61,7 +61,7 @@
             <span>Subtotal</span>
             <span>₱{{ subtotal.toFixed(2) }}</span>
           </div>
-          <div class="summary-row">
+          <div class="summary-row" v-if="deliveryType === 'delivery'">
             <span>Delivery Fee</span>
             <span>₱{{ deliveryFee.toFixed(2) }}</span>
           </div>
@@ -497,7 +497,7 @@ export default {
       }, 0);
     },
     deliveryFee() {
-      return this.cartShipping;
+      return this.deliveryType === 'delivery' ? this.cartShipping : 0;
     },
     serviceFee() {
       return this.cartTax;
@@ -506,7 +506,8 @@ export default {
       return this.cartTotal;
     },
     finalTotal() {
-      const baseTotal = this.cartTotalWithAdjustments || this.subtotal + this.deliveryFee + this.serviceFee;
+      const shippingFee = this.deliveryFee;
+      const baseTotal = this.subtotal + this.serviceFee + shippingFee;
 
       const totalDiscount =
         (this.pointsDiscount || 0) +

@@ -178,6 +178,15 @@ import Cart from './components/Cart.vue'
 import OrderHistory from './components/OrderHistory.vue'
 import PaymentHistory from './components/PaymentHistory.vue'
 
+const AUTH_REQUIRED_PAGES = new Set([
+  'Cart',
+  'Profile',
+  'ProfileSettings',
+  'Settings',
+  'OrderHistory',
+  'PaymentHistory'
+])
+
 export default {
   name: 'App',
   components: {
@@ -254,6 +263,7 @@ export default {
     handleHashChange() {
       console.log("🔙 Back button detected. Hash:", window.location.hash);
       this.checkURLHash();   // Re-read URL and update currentPage
+      this.scheduleScrollReset();
     },
 
     checkURLHash() {
@@ -360,13 +370,22 @@ export default {
     },
     
    setCurrentPage(page, context = {}) {
-      this.currentPage = page;
+      const requestedPage = page;
 
-      // ✅ Handle login redirection intent (e.g., from Order Now)
+      // Handle login redirection intent (e.g., from Order Now CTA)
       if (context.from === 'OrderNow') {
-        // Instead of going to Cart after login, redirect to Menu
         localStorage.setItem('loginRedirect', 'Menu');
       }
+
+      if (!this.isLoggedIn && this.requiresAuthentication(requestedPage)) {
+        if (context.from !== 'OrderNow') {
+          localStorage.setItem('loginRedirect', requestedPage);
+        }
+        this.showLoginRequiredToast(this.getLoginRequiredMessage(requestedPage));
+        page = 'Login';
+      }
+
+      this.currentPage = page;
 
       // ✅ Update URL hash when page changes
       const hashMap = {
@@ -404,11 +423,138 @@ export default {
         // Reload cart items when navigating to cart page to ensure sync
         this.loadCartItems();
       }
+
+      this.scheduleScrollReset();
+    },
+
+    scheduleScrollReset() {
+      if (typeof window === 'undefined') return;
+      this.$nextTick(() => {
+        const scrollOptions = { top: 0, behavior: 'smooth' };
+        if (typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(() => {
+            try {
+              window.scrollTo(scrollOptions);
+            } catch (_) {
+              window.scrollTo(0, 0);
+            }
+          });
+        } else {
+          try {
+            window.scrollTo(scrollOptions);
+          } catch (_) {
+            window.scrollTo(0, 0);
+          }
+        }
+      });
+    },
+    
+    requiresAuthentication(page) {
+      return AUTH_REQUIRED_PAGES.has(page);
+    },
+
+    getLoginRequiredMessage(page) {
+      switch (page) {
+        case 'Cart':
+          return 'Please log in to view your cart and checkout.';
+        case 'Profile':
+        case 'ProfileSettings':
+          return 'Please log in to view or update your profile.';
+        case 'OrderHistory':
+          return 'Please log in to review your past orders.';
+        case 'PaymentHistory':
+          return 'Please log in to view your payment history.';
+        case 'Settings':
+          return 'Please log in to update your settings.';
+        default:
+          return 'Please log in to continue.';
+      }
+    },
+
+    showLoginRequiredToast(message = 'Please log in to continue.') {
+      if (typeof window === 'undefined') return;
+
+      const existingToast = document.getElementById('login-required-toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+
+      const toast = document.createElement('div');
+      toast.id = 'login-required-toast';
+      toast.setAttribute('role', 'status');
+      toast.setAttribute('aria-live', 'polite');
+      toast.style.cssText = [
+        'position: fixed',
+        'top: 20px',
+        'right: 20px',
+        'background: #1f2a37',
+        'color: #ffffff',
+        'padding: 14px 18px',
+        'border-radius: 12px',
+        'box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25)',
+        'font-family: "Poppins", sans-serif',
+        'display: flex',
+        'align-items: center',
+        'gap: 12px',
+        'z-index: 10000',
+        'opacity: 0',
+        'transform: translateY(-10px)',
+        'transition: opacity 0.3s ease, transform 0.3s ease'
+      ].join(';');
+
+      const icon = document.createElement('span');
+      icon.textContent = '🔒';
+      icon.style.fontSize = '20px';
+
+      const textWrapper = document.createElement('div');
+      textWrapper.style.display = 'flex';
+      textWrapper.style.flexDirection = 'column';
+      textWrapper.style.gap = '2px';
+
+      const title = document.createElement('strong');
+      title.textContent = 'Login required';
+      title.style.fontSize = '14px';
+
+      const body = document.createElement('span');
+      body.textContent = message;
+      body.style.fontSize = '13px';
+      body.style.opacity = '0.9';
+
+      textWrapper.appendChild(title);
+      textWrapper.appendChild(body);
+
+      toast.appendChild(icon);
+      toast.appendChild(textWrapper);
+
+      document.body.appendChild(toast);
+
+      const animateIn = () => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+      };
+
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(animateIn);
+      } else {
+        animateIn();
+      }
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, 2800);
     },
 
     
     addToCart(product) {
       if (!this.isLoggedIn) {
+        localStorage.setItem('loginRedirect', this.currentPage || 'Menu');
+        this.showLoginRequiredToast('Please log in to add items to your cart.');
         this.setCurrentPage('Login');
         return;
       }

@@ -47,9 +47,10 @@
           :key="product.id || product._id"
         >
           <img 
-            :src="product.image_url || product.image || require('../assets/Home/BigRamen.png')" 
+            :src="resolveImageSrc(product)" 
             :alt="product.product_name || product.name"
             @error="handleImageError"
+            @load="handleImageLoad(product)"
           />
           <div class="product-info">
             <h3>{{ product.product_name || product.name }}</h3>
@@ -92,6 +93,7 @@
 
 <script>
 import './Menu.css';
+import { apiBaseUrl } from '../services/api.js';
 import { useProducts } from '../composables/api/useProducts.js';
 import { useCategories } from '../composables/api/useCategories.js';
 
@@ -193,6 +195,19 @@ export default {
           // Products are already in the composable state
           console.log('📦 Products updated in composable:', response.data.length);
           
+          // DEBUG: Check first product's image data
+          if (response.data.length > 0) {
+            const firstProduct = response.data[0];
+            console.log('🖼️ First product image check:', {
+              name: firstProduct.product_name,
+              hasImageUrl: !!firstProduct.image_url,
+              hasImage: !!firstProduct.image,
+              imageUrlType: typeof firstProduct.image_url,
+              imageUrlLength: firstProduct.image_url ? firstProduct.image_url.length : 0,
+              imageUrlPrefix: firstProduct.image_url ? firstProduct.image_url.substring(0, 100) : 'none'
+            });
+          }
+          
           // Update pagination if available
           if (response.data.pagination) {
             this.pagination = {
@@ -276,7 +291,30 @@ export default {
 
     handleImageError(event) {
       // Fallback image when product image fails to load
+      console.log('⚠️ Image failed to load, using placeholder');
       event.target.src = require('../assets/Home/BigRamen.png');
+    },
+    resolveImageSrc(product) {
+      // Prefer serving from media host (highest cacheability), then URL/base64, then placeholder
+      const mediaHost = apiBaseUrl.replace(/\/api[\\/].*$/, '').replace(/\/$/, '');
+      
+      // 1) If backend stored a filename, build media URL (best for performance)
+      if (product.image_filename) {
+        return `${mediaHost}/media/${product.image_filename}`;
+      }
+      // 2) Use explicit image_url (can be full URL or data URI)
+      if (product.image_url) return product.image_url;
+      // 3) Inline base64 image if provided
+      if (product.image) return product.image;
+      // 4) Fallback placeholder
+      return require('../assets/Home/BigRamen.png');
+    },
+    handleImageLoad(product) {
+      console.log('✅ Image loaded for:', product.product_name, {
+        hasImageUrl: !!product.image_url,
+        hasImage: !!product.image,
+        imageUrlPrefix: product.image_url ? product.image_url.substring(0, 50) : 'none'
+      });
     }
   },
 };
